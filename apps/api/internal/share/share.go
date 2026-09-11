@@ -109,3 +109,27 @@ func UnitsFor(funding, price money.Kobo) (units Units, spent, residual money.Kob
 	}
 	return units, spent, residual, nil
 }
+
+// CostOf returns the cash a quantity of units costs at a price, rounded UP.
+//
+// It is the inverse of UnitsFor and rounds the same direction for the same
+// reason: treasury is never short-changed by a fraction of a kobo. The
+// intermediate is big.Int because units × price overflows int64 on any batch
+// of real size — a thousand shares of a ₦10,000 name is already 1e17.
+func CostOf(u Units, price money.Kobo) (money.Kobo, error) {
+	if price < 0 {
+		return 0, fmt.Errorf("share: price must not be negative, got %d kobo", int64(price))
+	}
+	if u < 0 {
+		return 0, fmt.Errorf("share: cannot cost a negative quantity %s", u)
+	}
+	n := new(big.Int).Mul(big.NewInt(int64(u)), big.NewInt(int64(price)))
+	q, r := new(big.Int).QuoRem(n, big.NewInt(int64(PerShare)), new(big.Int))
+	if r.Sign() != 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	if !q.IsInt64() {
+		return 0, fmt.Errorf("share: %s at %s exceeds the naira range", u, price)
+	}
+	return money.Kobo(q.Int64()), nil
+}
