@@ -743,3 +743,16 @@ func TestTapToSaleCompleteLoop(t *testing.T) {
 
 	assertNoReservations(t, p)
 }
+
+// runBuyback executes one buyback session and returns the result.
+func runBuyback(t *testing.T, p *pgxpool.Pool, n *network, trailing int) buyback.Result {
+	t.Helper()
+	var b buyback.Result
+	mustTx(t, p, func(tx pgx.Tx) error {
+		var err error
+		e := &buyback.Engine{TrailingBandSessions: trailing}
+		b, err = e.RunSession(context.Background(), tx, n.instrumentID, sessionDate)
+		return err
+	})
+	return b
+}

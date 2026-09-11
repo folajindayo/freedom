@@ -1,3 +1,14 @@
+-- Extensions.
+--
+-- Created here rather than in a migration because installing an extension
+-- requires privileges the application role deliberately does not have. This
+-- file runs once, as the database owner; migrations run as freedom_scheme.
+--
+-- btree_gist lets an exclusion constraint mix an equality test on text with a
+-- range overlap test — "one open period per instrument", and the same for BIN
+-- ranges on the card side.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
 -- Roles and grants. Run once per database, before any migration.
 --
 -- The two roles are the mechanism behind participant isolation: RLS is worth

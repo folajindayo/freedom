@@ -276,7 +276,8 @@ func reset(t *testing.T, p *pgxpool.Pool) {
 		         members, client_accounts, order_events, fills, order_lot_reservations,
 		         lot_disposals, trading_calendar, trading_halts, related_parties,
 		         surveillance_alerts, treasury_releases,
-		         corporate_actions, corporate_action_entitlements, corporate_action_factors, fee_schedules
+		         corporate_actions, corporate_action_entitlements, corporate_action_factors,
+		         closed_periods, member_activity, fee_schedules
 		RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset: %v", err)
