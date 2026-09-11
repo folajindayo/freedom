@@ -644,3 +644,102 @@ func tap(t *testing.T, p *pgxpool.Pool, n *network) {
 		return err
 	})
 }
+
+// The complete loop, and the argument for the whole system.
+//
+// A cardholder taps at a shop, the fee pool buys them shares of that shop, the
+// shares sit locked through the chargeback window, and then they sell them on
+// the exchange and the naira lands back in the balance they spend from.
+//
+// Until this passed, the stock wallet was a one-way door.
+func TestTapToSaleCompleteLoop(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	n := setup(t, p)
+	holder := n.cardholderID
+
+	// --- earn -------------------------------------------------------------
+	tap(t, p, n)
+	mustTx(t, p, func(tx pgx.Tx) error {
+		e := &buyback.Engine{TrailingBandSessions: 0}
+		_, err := e.RunSession(ctx, tx, n.instrumentID, sessionDate)
+		return err
+	})
+
+	earned := sharesOf(t, p, holder, n.instrumentID)
+	if earned != share.PerShare/8 {
+		t.Fatalf("the tap earned %s, want 0.125 shares", earned)
+	}
+
+	// --- locked -----------------------------------------------------------
+	sellable, err := exchange.Sellable(ctx, p, holder, n.instrumentID, sessionDate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sellable != 0 {
+		t.Fatalf("%s was sellable on the day it was earned — the chargeback window is not holding", sellable)
+	}
+
+	// --- unlocked ---------------------------------------------------------
+	// tradeDate is past the 120 days. Give the holder enough to clear the
+	// instrument's minimum order size, all of it from the same locked cohort.
+	giveShares(t, p, n, holder, share.Whole(5), money.Naira(30))
+	sellable, err = exchange.Sellable(ctx, p, holder, n.instrumentID, tradeDate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sellable <= 0 {
+		t.Fatal("nothing became sellable after the lock expired")
+	}
+
+	// --- sell -------------------------------------------------------------
+	buyer := newCardholder(t, p, "Ifeoma Ude")
+	fund(t, p, buyer, money.Naira(20_000))
+	member, sa, ba := membership(t, p, n, holder, buyer)
+	cashBefore := nairaOf(t, p, holder, ledger.KindAvailable)
+
+	var result exchange.Result
+	mustTx(t, p, func(tx pgx.Tx) error {
+		e := exchange.NewEngine()
+		s, err := e.Open(ctx, tx, n.instrumentID, tradeDate)
+		if err != nil {
+			return err
+		}
+		if _, err := e.Place(ctx, tx, s, exchange.OrderRequest{
+			MemberID: member, ClientAccountID: sa.client, CardholderID: holder,
+			AccountID: sa.ledger, Side: exchange.Sell, Type: exchange.TypeLimit,
+			Limit: money.Naira(38), Qty: share.Whole(4),
+		}); err != nil {
+			return err
+		}
+		if _, err := e.Place(ctx, tx, s, exchange.OrderRequest{
+			MemberID: member, ClientAccountID: ba.client, CardholderID: buyer,
+			AccountID: ba.ledger, Side: exchange.Buy, Type: exchange.TypeLimit,
+			Limit: money.Naira(42), Qty: share.Whole(4),
+		}); err != nil {
+			return err
+		}
+		result, err = e.RunToSettlement(ctx, tx, s)
+		return err
+	})
+
+	if !result.Determined {
+		t.Fatal("the sale did not cross")
+	}
+	proceeds := nairaOf(t, p, holder, ledger.KindAvailable) - cashBefore
+	if proceeds <= 0 {
+		t.Fatalf("the sale netted %s", proceeds)
+	}
+
+	// The cost basis of what was sold is recorded, so a gain can be computed.
+	var realised int64
+	if err := p.QueryRow(ctx, `SELECT COALESCE(SUM(realised_kobo), 0) FROM lot_disposals`).
+		Scan(&realised); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("tapped ₦10,000 → earned %s → sold 4 shares at %s → %s in hand (realised %s)",
+		earned, result.Price, proceeds, money.Kobo(realised))
+
+	assertNoReservations(t, p)
+}

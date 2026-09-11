@@ -19,11 +19,16 @@ tap (NTAG) → softPOS → acquirer → switch → issuer (hold) → approved
                                             shares in the stock wallet
 ```
 
-That path runs today. `make e2e`:
+That path runs today, and so does the way back out. `make e2e`:
 
 ```
-one ₦10,000 tap at SHOPCDEFB6: the cardholder now owns 0.125 shares
+one ₦10,000 tap at SHOP18A936: the cardholder now owns 0.125 shares
+tapped ₦10,000 → earned 0.125 → sold 4 shares at ₦40.00 → ₦155.00 in hand
+session printed ₦80.00, buyback paid ₦40.00
 ```
+
+The last line is the wash-trading defence: a listing that ramps its own price
+on a thin session does not get paid the ramped price.
 
 ## The economics, stated plainly
 
@@ -51,6 +56,7 @@ apps/api/                       one Go module, one binary per service
     issuer/ acquirer/           authorisation, capture, refund
     clearing/                   T+1 batch, fee split, buyback intents
     buyback/                    allocation, treasury release, price band
+    exchange/                   call auction, reservations, T+0 settlement
     migrate/sql/                embedded schema
     e2e/                        the whole rail, end to end
 docs/SECURITY.md                threat model, and what is NOT defended
@@ -91,6 +97,23 @@ be reversed, and a reversed tap must not have bought anyone shares.
 auction discovered and is never an input to that auction. Otherwise the network's
 own demand sets the price the network pays.
 
+**An auction price is one someone named.** Never a band edge. A book of market
+orders on both sides ties at every price, and a ladder without this invariant
+picks the top of the band — one 0.01-share trade printing at reference × 1.20 and
+becoming tomorrow's buyback price. When the reference sits inside the tied
+interval, the reference itself is the price.
+
+**Trading settles T+0, atomically.** Cash and shares are reserved at order entry
+and swapped in one ledger transaction. There is no unsettled window, so there is
+no clearing house, no netting, no margin and no guarantee fund — all of which
+exist only to manage a window we do not have. The cost is that nobody trades on
+credit, which for prepaid cardholders is not a constraint.
+
+**Shares earned by tapping cannot be sold for 120 days.** Otherwise a fraudster
+taps, takes the equity, sells it, and charges the tap back. Reservations pick
+lots by identity rather than quantity, so a locked lot cannot be sold even when
+the account's total looks sufficient.
+
 **Sub-kobo residuals belong to the cardholder.** They carry forward to the next
 buyback rather than being swept to revenue. A scheme that quietly keeps the
 change from millions of taps has invented a fee it never disclosed.
@@ -103,10 +126,12 @@ that appears to fix it without moving to NTAG424 reads as wrong.
 ## Status
 
 Built: the ledger, fee engine, both credential technologies, authorisation,
-capture, clearing, and the buyback — proven end to end with 60-odd tests
-including database-level concurrency.
+capture, clearing, the buyback, and the exchange — call auction, pre-trade risk,
+T+0 settlement, FIFO cost basis, price bands and the wash-trading cap. Proven
+end to end with 95 tests including database-level concurrency, a brute-force
+matching oracle, and fuzzing.
 
-Not built: the call auction and order book (the buyback currently takes the
-reference price directly), chargeback unwind, dispute clocks, settlement to
-member banks, the softPOS app, and the consoles. `docs/SECURITY.md` §10 lists
-the security-relevant gaps.
+Not built: the continuous order book (symbols are auction-only until they earn
+it), designated market makers, corporate actions, chargeback unwind, dispute
+clocks, settlement to member banks, the softPOS app, and the consoles.
+`docs/SECURITY.md` §10 lists the security-relevant gaps.
