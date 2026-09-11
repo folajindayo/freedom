@@ -80,6 +80,15 @@ const (
 	KindFloat              = "float"
 	KindSuspense           = "suspense"
 	KindExternal           = "external"
+
+	// Exchange. Reservations are deliberately not KindHold: both mean "set
+	// aside", but a card authorisation hold and an order reservation are
+	// released by different jobs with different retry semantics, and sharing
+	// one kind means an order release eventually frees card value.
+	KindOrderCashReserve  = "order_cash_reserve"
+	KindOrderShareReserve = "order_share_reserve"
+	KindExchangeFeeIncome = "exchange_fee_income"
+	KindTaxWithheld       = "tax_withheld"
 )
 
 // Owner types.

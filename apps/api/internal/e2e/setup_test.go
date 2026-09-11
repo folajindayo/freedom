@@ -141,10 +141,10 @@ func setup(t *testing.T, p *pgxpool.Pool) *network {
 	   VALUES ($1,$2,$3)`,
 		n.instrumentID, treasuryAcct, int64(share.Whole(100)))
 
-	// The reference price the buyback is a price-taker against.
-	x(`INSERT INTO price_observations (instrument_id, obs_date, source, price_kobo, volume_units, content_hash)
-	   VALUES ($1,$2::date,'auction',$3,0,'seed')`,
-		n.instrumentID, sessionDate, int64(money.Naira(40)))
+	// A published auction at ₦40. The buyback is a price taker and now requires
+	// a session that actually published, so the fixture has to run one — which
+	// is the point: the dependency is explicit rather than assumed.
+	publishAuction(t, p, n, sessionDate, money.Naira(40), share.Whole(10))
 
 	// Fund the cardholder, so there is something to spend.
 	mustTx(t, p, func(tx pgx.Tx) error {
@@ -284,5 +284,39 @@ func reset(t *testing.T, p *pgxpool.Pool) {
 	if _, err := p.Exec(context.Background(),
 		`DELETE FROM assets WHERE class = 'equity'`); err != nil {
 		t.Fatalf("reset assets: %v", err)
+	}
+}
+
+// publishAuction records a settled session at a given price, standing in for a
+// real uncross where a test only needs the price that came out of one.
+func publishAuction(t *testing.T, p *pgxpool.Pool, n *network, date string,
+	price money.Kobo, volume share.Units) {
+	t.Helper()
+	ctx := context.Background()
+	var auctionID uuid.UUID
+	if err := p.QueryRow(ctx, `
+		INSERT INTO auctions (instrument_id, session_date, state, opens_at, freezes_at,
+		                      prev_reference_kobo, clearing_price_kobo, matched_units,
+		                      imbalance_units, zero_volume, uncrossed_at, publishes_at, rule)
+		VALUES ($1,$2::date,'published',now(),now(),$3,$3,$4,0,false,now(),now(),'max_volume')
+		ON CONFLICT (instrument_id, session_date) DO UPDATE SET clearing_price_kobo = EXCLUDED.clearing_price_kobo
+		RETURNING id`,
+		n.instrumentID, date, int64(price), int64(volume)).Scan(&auctionID); err != nil {
+		t.Fatalf("publish auction: %v", err)
+	}
+	if _, err := p.Exec(ctx, `
+		INSERT INTO price_observations (instrument_id, obs_date, source, price_kobo,
+		                                volume_units, session_vwap_kobo, trade_count,
+		                                auction_id, content_hash)
+		VALUES ($1,$2::date,'auction',$3,$4,$3,1,$5,$6)
+		ON CONFLICT DO NOTHING`,
+		n.instrumentID, date, int64(price), int64(volume), auctionID,
+		"seed-"+date+"-"+randHex(4)); err != nil {
+		t.Fatalf("publish observation: %v", err)
+	}
+	if _, err := p.Exec(ctx,
+		`UPDATE instruments SET reference_price_kobo = $2, carry_forward_sessions = 0 WHERE id = $1`,
+		n.instrumentID, int64(price)); err != nil {
+		t.Fatal(err)
 	}
 }

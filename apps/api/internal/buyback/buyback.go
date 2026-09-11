@@ -56,6 +56,9 @@ type Result struct {
 	Residual     money.Kobo
 	DeferredDust int
 	Capped       bool
+	// Escrowed and Refusal are set when no execution price was available.
+	Escrowed int
+	Refusal  Refusal
 }
 
 type intent struct {
@@ -80,6 +83,19 @@ func (e *Engine) RunSession(ctx context.Context, tx pgx.Tx, instrumentID, sessio
 
 	price, err := e.executionPrice(ctx, tx, instrumentID, sessionDate)
 	if err != nil {
+		var refused PriceRefused
+		if errors.As(err, &refused) {
+			// There is no price we are willing to stand behind. The funding is
+			// already held, so the intents escrow and are retried; failing the
+			// clearing batch over one unpriceable instrument would strand every
+			// other merchant's buyback with it.
+			n, err := escrowPending(ctx, tx, instrumentID, string(refused.Reason))
+			if err != nil {
+				return res, err
+			}
+			res.Escrowed, res.Refusal = n, refused.Reason
+			return res, nil
+		}
 		return res, err
 	}
 	res.Price = price
