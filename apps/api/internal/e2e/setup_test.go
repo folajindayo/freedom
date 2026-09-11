@@ -270,16 +270,9 @@ func mustHex(t *testing.T, s string) []byte {
 	return b
 }
 
-// reset empties the network between end-to-end tests.
-//
-// Clearing deliberately processes every unbatched presentment on the network —
-// that is what a clearing run is — so tests that share a database would
-// otherwise pick up each other's traffic. The isolation belongs here rather
-// than in a narrower clearing query that would not match production.
-func reset(t *testing.T, p *pgxpool.Pool) {
-	t.Helper()
-	_, err := p.Exec(context.Background(), `
-		TRUNCATE ledger_entries, ledger_tx, accounts, account_balance_snapshots,
+// truncateList names every table cleared between end-to-end tests.
+// TestResetCoversEveryTable checks it against the live schema.
+const truncateList = `ledger_entries, ledger_tx, accounts, account_balance_snapshots,
 		         participants, bin_ranges, cardholders, cards, card_credentials,
 		         merchants, terminals, authorizations, presentments, clearing_batches,
 		         companies, instruments, cap_table_events, treasury_pools,
@@ -289,8 +282,20 @@ func reset(t *testing.T, p *pgxpool.Pool) {
 		         lot_disposals, trading_calendar, trading_halts, related_parties,
 		         surveillance_alerts, treasury_releases,
 		         corporate_actions, corporate_action_entitlements, corporate_action_factors,
-		         closed_periods, member_activity, trading_calendar, fee_schedules
-		RESTART IDENTITY CASCADE`)
+		         closed_periods, member_activity, trading_calendar,
+		         recon_runs, recon_breaks, share_transfers, holding_statements,
+		         settlement_instructions, fee_schedules`
+
+// reset empties the network between end-to-end tests.
+//
+// Clearing deliberately processes every unbatched presentment on the network —
+// that is what a clearing run is — so tests that share a database would
+// otherwise pick up each other's traffic. The isolation belongs here rather
+// than in a narrower clearing query that would not match production.
+func reset(t *testing.T, p *pgxpool.Pool) {
+	t.Helper()
+	_, err := p.Exec(context.Background(),
+		`TRUNCATE `+truncateList+` RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset: %v", err)
 	}
@@ -332,5 +337,43 @@ func publishAuction(t *testing.T, p *pgxpool.Pool, n *network, date string,
 		`UPDATE instruments SET reference_price_kobo = $2, carry_forward_sessions = 0 WHERE id = $1`,
 		n.instrumentID, int64(price)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// reset's truncate list is hand-maintained, and every new table that is missing
+// from it leaks state between tests — intermittently, which is the worst kind
+// of failure. This compares the list against the schema so the omission fails
+// here instead.
+func TestResetCoversEveryTable(t *testing.T) {
+	p := pool(t)
+	// Tables deliberately not truncated: reference data that every test needs,
+	// and the migration bookkeeping that would re-run the whole schema.
+	keep := map[string]bool{"assets": true, "schema_migrations": true}
+
+	rows, err := p.Query(context.Background(), `
+		SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	var missing []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		if keep[name] {
+			continue
+		}
+		if !strings.Contains(truncateList, name) {
+			missing = append(missing, name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) > 0 {
+		t.Fatalf("these tables are not truncated between tests and will leak state: %v", missing)
 	}
 }
