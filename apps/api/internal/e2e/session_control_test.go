@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"freedom/api/internal/exchange"
 	"freedom/api/internal/money"
@@ -253,4 +254,125 @@ func TestBandBreachIsRefusedNotClamped(t *testing.T) {
 	if kind != "band_breach" {
 		t.Errorf("incident kind = %s, want band_breach", kind)
 	}
+}
+
+// Graduation is deliberately hard to buy: every criterion is either a count of
+// distinct unrelated participants or a concentration limit, because those are
+// the ones an issuer cannot satisfy by trading with itself.
+func TestLiquidityGateRefusesAThinSymbol(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	n := setup(t, p)
+
+	var rep exchange.LiquidityReport
+	mustTx(t, p, func(tx pgx.Tx) error {
+		var err error
+		rep, err = exchange.StandardLiquidityTest().Assess(ctx, tx, n.instrumentID, tradeDate)
+		return err
+	})
+	if rep.Passes {
+		t.Fatal("a symbol with one seeded session passed the liquidity standard")
+	}
+
+	// The report says exactly which tests failed, so a listing can be told what
+	// it is short of rather than simply refused.
+	if len(rep.Failures) < 3 {
+		t.Fatalf("expected several failures, got %v", rep.Failures)
+	}
+	t.Logf("refused with %d failures, first: %s", len(rep.Failures), rep.Failures[0])
+
+	if err := inTx(p, func(tx pgx.Tx) error {
+		return exchange.Graduate(ctx, tx, rep, "listings.committee")
+	}); err == nil {
+		t.Fatal("a failing symbol was graduated")
+	}
+}
+
+// A blocking alert disqualifies outright. A symbol under suspicion does not get
+// a more permissive market structure.
+func TestBlockingAlertDisqualifiesFromGraduation(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	n := setup(t, p)
+
+	mustExec(t, p, `
+		INSERT INTO surveillance_alerts (instrument_id, session_date, detection, severity, subject_group, evidence)
+		VALUES ($1,$2::date,'wash_trading','block','grp','{}'::jsonb)`, n.instrumentID, sessionDate)
+
+	var rep exchange.LiquidityReport
+	mustTx(t, p, func(tx pgx.Tx) error {
+		var err error
+		rep, err = exchange.StandardLiquidityTest().Assess(ctx, tx, n.instrumentID, tradeDate)
+		return err
+	})
+
+	var found bool
+	for _, f := range rep.Failures {
+		if strings.Contains(f, "blocking alerts") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("an open blocking alert did not disqualify: %v", rep.Failures)
+	}
+}
+
+// Graduation is reversible. A one-way door removes the issuer's incentive to
+// maintain liquidity the moment they are through it.
+func TestGraduationIsReversible(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	n := setup(t, p)
+
+	// A report that passes, standing in for twenty sessions of real trading.
+	pass := exchange.LiquidityReport{InstrumentID: n.instrumentID, Passes: true}
+
+	mustTx(t, p, func(tx pgx.Tx) error {
+		return exchange.Graduate(ctx, tx, pass, "listings.committee")
+	})
+	if !clobEnabled(t, p, n) {
+		t.Fatal("graduation did not enable continuous trading")
+	}
+	if err := inTx(p, func(tx pgx.Tx) error {
+		return exchange.Graduate(ctx, tx, pass, "listings.committee")
+	}); err == nil {
+		t.Error("graduating an already-continuous symbol must be an error")
+	}
+
+	mustTx(t, p, func(tx pgx.Tx) error {
+		return exchange.Demote(ctx, tx, pass, "surveillance")
+	})
+	if clobEnabled(t, p, n) {
+		t.Fatal("demotion did not return the symbol to auction-only")
+	}
+
+	var state string
+	if err := p.QueryRow(ctx,
+		`SELECT clob_review_state FROM instruments WHERE id = $1`, n.instrumentID).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "demoted" {
+		t.Errorf("review state = %s, want demoted", state)
+	}
+
+	// Both decisions are on the record with the name of whoever made them.
+	var reviews int
+	if err := p.QueryRow(ctx, `
+		SELECT COUNT(*) FROM data_quality_incidents
+		 WHERE instrument_id = $1 AND kind = 'liquidity_review'`, n.instrumentID).Scan(&reviews); err != nil {
+		t.Fatal(err)
+	}
+	if reviews != 2 {
+		t.Errorf("%d liquidity reviews recorded, want 2", reviews)
+	}
+}
+
+func clobEnabled(t *testing.T, p *pgxpool.Pool, n *network) bool {
+	t.Helper()
+	var on bool
+	if err := p.QueryRow(context.Background(),
+		`SELECT clob_enabled FROM instruments WHERE id = $1`, n.instrumentID).Scan(&on); err != nil {
+		t.Fatal(err)
+	}
+	return on
 }
