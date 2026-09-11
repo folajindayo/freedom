@@ -117,6 +117,16 @@ type CardState struct {
 	// real cardholder out on their next tap. Both burn on use.
 	TokenCurrent []byte
 	TokenPrev    []byte
+
+	// TokenPrevFromCounter is the counter reading at which TokenPrev was
+	// superseded. The previous token is honoured only strictly above it.
+	//
+	// Without this, the fallback is a replay window: two taps presenting the
+	// same token at the same instant would both be approved, one as current and
+	// one as previous. A genuine re-tap after a failed write-back always shows a
+	// higher counter, because the tag increments on every read; a duplicate of
+	// one tap shows the same counter and is refused.
+	TokenPrevFromCounter uint32
 }
 
 // Result is the verdict. A Result with OK false and CloneSuspected true is the

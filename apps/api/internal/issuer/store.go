@@ -45,6 +45,7 @@ type credential struct {
 	LastCounter  int64
 	TokenCurrent []byte
 	TokenPrev    []byte
+	PrevFrom     int64
 	Status       string
 }
 
@@ -59,10 +60,11 @@ func lockCredentialByUID(ctx context.Context, tx pgx.Tx, uid []byte) (credential
 		return c, pgx.ErrNoRows
 	}
 	err := tx.QueryRow(ctx, `
-		SELECT id, card_id, tech, tag_uid, last_counter, token_current, token_prev, status
+		SELECT id, card_id, tech, tag_uid, last_counter, token_current, token_prev,
+		       token_prev_from_counter, status
 		  FROM card_credentials WHERE tag_uid = $1 FOR UPDATE`, uid).
 		Scan(&c.ID, &c.CardID, &c.Tech, &c.TagUID, &c.LastCounter,
-			&c.TokenCurrent, &c.TokenPrev, &c.Status)
+			&c.TokenCurrent, &c.TokenPrev, &c.PrevFrom, &c.Status)
 	return c, err
 }
 
@@ -118,12 +120,13 @@ func advanceCounter(ctx context.Context, tx pgx.Tx, credID uuid.UUID, counter in
 // rotateToken burns the presented token and installs the next one. The token
 // that was current becomes previous, so a write-back that fails in the field
 // leaves the cardholder one working tap rather than a frozen card.
-func rotateToken(ctx context.Context, tx pgx.Tx, credID uuid.UUID, prev, next []byte, now time.Time) error {
+func rotateToken(ctx context.Context, tx pgx.Tx, credID uuid.UUID, prev, next []byte,
+	atCounter int64, now time.Time) error {
 	_, err := tx.Exec(ctx, `
 		UPDATE card_credentials
-		   SET token_prev = $2, token_current = $3,
+		   SET token_prev = $2, token_current = $3, token_prev_from_counter = $5,
 		       token_seq = token_seq + 1, token_rotated_at = $4
-		 WHERE id = $1`, credID, prev, next, now)
+		 WHERE id = $1`, credID, prev, next, now, atCounter)
 	if err != nil {
 		return fmt.Errorf("issuer: rotate token: %w", err)
 	}

@@ -57,6 +57,18 @@ func TestNTAG215StateMachine(t *testing.T) {
 			token: tok(0xBB), uid: pilotUID, counter: 11, wantOK: true, wantPrev: true,
 		},
 		{
+			name:   "the previous token replayed at the same counter is a replay, not a retry",
+			mutate: func(s *CardState) { s.TokenPrevFromCounter = 11 },
+			token:  tok(0xBB), uid: pilotUID, counter: 11,
+			wantClone: true, wantWhy: ReasonStaleToken,
+		},
+		{
+			name:   "the previous token one read later is a genuine retry",
+			mutate: func(s *CardState) { s.TokenPrevFromCounter = 11 },
+			token:  tok(0xBB), uid: pilotUID, counter: 12,
+			wantOK: true, wantPrev: true,
+		},
+		{
 			name:  "a token this card once held but has since burnt — a clone",
 			token: tok(0xCC), uid: pilotUID, counter: 11,
 			wantClone: true, wantWhy: ReasonStaleToken,

@@ -93,7 +93,13 @@ func (NTAG215) Verify(state CardState, p Presentment) Result {
 		return Result{OK: true, Counter: p.Counter, UID: p.UID}
 
 	case len(state.TokenPrev) == TokenBytes && equalCT(p.Token, state.TokenPrev):
-		// The previous write-back did not land. Accept once more and re-issue.
+		// The previous write-back did not land. Accept once more and re-issue —
+		// but only if the tag has actually been read again since. A counter that
+		// has not advanced means this is the same tap presented twice, which is
+		// a replay rather than a retry.
+		if p.Counter <= state.TokenPrevFromCounter {
+			return clone(ReasonStaleToken)
+		}
 		return Result{OK: true, Counter: p.Counter, UID: p.UID, UsedPrevToken: true}
 
 	default:

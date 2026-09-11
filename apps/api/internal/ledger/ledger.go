@@ -214,7 +214,7 @@ func Post(ctx context.Context, q Querier, tx Tx) (uuid.UUID, error) {
 
 		id, err := insert(ctx, dbtx, tx)
 		if err != nil {
-			return uuid.Nil, err
+			return id, err
 		}
 		if err := dbtx.Commit(ctx); err != nil {
 			return uuid.Nil, fmt.Errorf("ledger: commit: %w", err)
@@ -225,17 +225,34 @@ func Post(ctx context.Context, q Querier, tx Tx) (uuid.UUID, error) {
 }
 
 func insert(ctx context.Context, q Querier, tx Tx) (uuid.UUID, error) {
+	// ON CONFLICT DO NOTHING rather than letting the unique violation raise.
+	//
+	// A raised error aborts the whole Postgres transaction, and Post is
+	// routinely called inside a much larger one — a clearing batch, or an
+	// authorisation that still has work to do afterwards. Letting the duplicate
+	// surface as an error would poison every subsequent statement in that
+	// transaction with "current transaction is aborted", turning an expected
+	// retry into a total failure of the batch around it.
 	var txID uuid.UUID
 	err := q.QueryRow(ctx, `
 		INSERT INTO ledger_tx (event_type, business_date, idempotency_key, correlation_id)
 		VALUES ($1, $2::date, $3, $4)
+		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING id`,
 		tx.EventType, tx.BusinessDate, tx.IdempotencyKey, tx.CorrelationID).Scan(&txID)
-	if err != nil {
-		var pge *pgconn.PgError
-		if errors.As(err, &pge) && pge.Code == "23505" {
-			return uuid.Nil, fmt.Errorf("%w (key %q)", ErrAlreadyPosted, tx.IdempotencyKey)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Already posted. Return the id of the transaction that won, so a
+		// caller on a retry path can reference the original rather than having
+		// to go looking for it.
+		var existing uuid.UUID
+		if err := q.QueryRow(ctx,
+			`SELECT id FROM ledger_tx WHERE idempotency_key = $1`, tx.IdempotencyKey).Scan(&existing); err != nil {
+			return uuid.Nil, fmt.Errorf("ledger: locating existing transaction %q: %w", tx.IdempotencyKey, err)
 		}
+		return existing, fmt.Errorf("%w (key %q)", ErrAlreadyPosted, tx.IdempotencyKey)
+	}
+	if err != nil {
 		return uuid.Nil, fmt.Errorf("ledger: open transaction: %w", err)
 	}
 

@@ -139,6 +139,8 @@ func (a *Authorizer) Authorize(ctx context.Context, tx pgx.Tx, req Request) (Res
 		LastCounter:  uint32(cred.LastCounter),
 		TokenCurrent: cred.TokenCurrent,
 		TokenPrev:    cred.TokenPrev,
+
+		TokenPrevFromCounter: uint32(cred.PrevFrom),
 	}
 	result := verifier.Verify(state, presentment)
 
@@ -255,7 +257,10 @@ func (a *Authorizer) Authorize(ctx context.Context, tx pgx.Tx, req Request) (Res
 		if err != nil {
 			return Response{}, err
 		}
-		if err := rotateToken(ctx, tx, cred.ID, cred.TokenCurrent, wb.Token, now); err != nil {
+		// The token presented becomes the fallback, valid only above the counter
+		// this tap reported.
+		if err := rotateToken(ctx, tx, cred.ID, cred.TokenCurrent, wb.Token,
+			int64(result.Counter), now); err != nil {
 			return Response{}, err
 		}
 		resp.WriteBack = wb
