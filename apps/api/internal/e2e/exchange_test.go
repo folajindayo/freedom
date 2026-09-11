@@ -756,3 +756,34 @@ func runBuyback(t *testing.T, p *pgxpool.Pool, n *network, trailing int) buyback
 	})
 	return b
 }
+
+// exchangeOpen and exchangeHalt are thin wrappers so the institution tests read
+// as what they are checking rather than as engine plumbing.
+func exchangeOpen(ctx context.Context, tx pgx.Tx, instrumentID string) (*exchange.Session, error) {
+	return exchange.NewEngine().Open(ctx, tx, instrumentID, tradeDate)
+}
+
+func exchangeHalt(ctx context.Context, tx pgx.Tx, instrumentID string) (uuid.UUID, error) {
+	return exchange.Halt(ctx, tx, instrumentID, exchange.HaltRegulatory, "sec", nil)
+}
+
+// listAnother lists a second instrument, so index and cross-symbol tests have
+// something to compare against.
+func listAnother(t *testing.T, p *pgxpool.Pool, n *network, symbol string,
+	price money.Kobo, issued share.Units) string {
+	t.Helper()
+	ctx := context.Background()
+	assetID := ledger.EquityAsset(symbol)
+	mustExec(t, p, `INSERT INTO assets (id,class,scale,label) VALUES ($1,'equity',8,$2)
+	                ON CONFLICT DO NOTHING`, assetID, symbol)
+	mustExec(t, p, `
+		INSERT INTO instruments (id, symbol, company_id, shares_authorised_units,
+		                         reference_price_kobo, status, listed_at)
+		VALUES ($1,$2,$3,$4,$5,'listed',now())`,
+		assetID, symbol, n.companyID, int64(share.Whole(1_000_000)), int64(price))
+	mustExec(t, p, `
+		INSERT INTO cap_table_events (instrument_id, kind, units_delta, note)
+		VALUES ($1,'authorised',$2,'listing')`, assetID, int64(issued))
+	_ = ctx
+	return assetID
+}

@@ -135,6 +135,11 @@ func setup(t *testing.T, p *pgxpool.Pool) *network {
 		return err
 	})
 
+	// Issuance is an event, not an implied consequence of a ledger balance —
+	// the index and the authorised-ceiling check both read the cap table.
+	x(`INSERT INTO cap_table_events (instrument_id, kind, units_delta, note)
+	   VALUES ($1,'authorised',$2,'listing')`, n.instrumentID, int64(share.Whole(1_000)))
+
 	var treasuryAcct uuid.UUID
 	q(&treasuryAcct, `SELECT id FROM accounts WHERE owner_type='company' AND owner_id=$1
 	                  AND kind='treasury' AND asset_id=$2`, n.companyID, n.instrumentID)
@@ -284,7 +289,8 @@ const truncateList = `ledger_entries, ledger_tx, accounts, account_balance_snaps
 		         corporate_actions, corporate_action_entitlements, corporate_action_factors,
 		         closed_periods, member_activity, trading_calendar,
 		         recon_runs, recon_breaks, share_transfers, holding_statements,
-		         settlement_instructions, fee_schedules`
+		         settlement_instructions, disclosures, indices, index_constituents,
+		         index_values, protection_claims, complaints, clock_checks, fee_schedules`
 
 // reset empties the network between end-to-end tests.
 //

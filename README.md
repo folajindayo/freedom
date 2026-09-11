@@ -56,7 +56,12 @@ apps/api/                       one Go module, one binary per service
     issuer/ acquirer/           authorisation, capture, refund
     clearing/                   T+1 batch, fee split, buyback intents
     buyback/                    allocation, treasury release, price band
-    exchange/                   call auction, reservations, T+0 settlement
+    exchange/                   call auction, CLOB, reservations, T+0 settlement
+    exchange/httpapi/           order entry and market data over HTTP
+    recon/                      three-way reconciliation and break workflow
+    registrar/                  transfer agent, holding statements
+    cashrail/                   NIBSS deposits and withdrawals
+    institution/                disclosure, index, protection fund, complaints
     migrate/sql/                embedded schema
     e2e/                        the whole rail, end to end
 docs/SECURITY.md                threat model, and what is NOT defended
@@ -125,13 +130,22 @@ that appears to fix it without moving to NTAG424 reads as wrong.
 
 ## Status
 
-Built: the ledger, fee engine, both credential technologies, authorisation,
-capture, clearing, the buyback, and the exchange — call auction, pre-trade risk,
-T+0 settlement, FIFO cost basis, price bands and the wash-trading cap. Proven
-end to end with 95 tests including database-level concurrency, a brute-force
-matching oracle, and fuzzing.
+**161 tests.** The card rail and the exchange both run end to end, and so does
+everything between them.
 
-Not built: the continuous order book (symbols are auction-only until they earn
-it), designated market makers, corporate actions, chargeback unwind, dispute
-clocks, settlement to member banks, the softPOS app, and the consoles.
-`docs/SECURITY.md` §10 lists the security-relevant gaps.
+Built: the ledger, fee engine, both credential technologies, authorisation,
+capture, clearing and the buyback. On the exchange: the call auction, a
+continuous order book behind a liquidity gate, pre-trade risk, T+0 settlement,
+FIFO cost basis, corporate actions, price bands, circuit breakers, the trading
+calendar, surveillance with case management, an order entry API, a member
+certification harness, reconciliation, a transfer agent, holding statements, the
+cash rail, disclosure, an index, an investor protection fund, complaints and
+clock integrity.
+
+Not built: FIX connectivity, designated market makers (the model exists, the
+obligations do not), chargeback unwind, card dispute clocks, settlement to
+member banks, the softPOS app, and the consoles.
+
+`docs/SECURITY.md` §10 lists the security gaps, `docs/CONTINUITY.md` §7 the
+operational ones, and `docs/LISTING-RULES.md` §8 the questions for counsel —
+one of which is worth ₦5bn.
