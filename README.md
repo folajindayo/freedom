@@ -1,4 +1,4 @@
-# Ọja
+# Freedom
 
 A card scheme, a merchant acceptance network, and a private stock exchange —
 built together, because the product only works if all three exist.

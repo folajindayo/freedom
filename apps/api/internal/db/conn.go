@@ -5,10 +5,10 @@
 //
 // Row-level security is the mechanism that stops one acquirer on the network
 // seeing another's traffic, and it is worth nothing if every binary connects as
-// the same Postgres role. Ọja therefore has two:
+// the same Postgres role. Freedom therefore has two:
 //
-//	oja_participant  RLS enforced. The acquirer API and the member portal.
-//	oja_scheme       BYPASSRLS. The switch, clearing, and the auction engine,
+//	freedom_participant  RLS enforced. The acquirer API and the member portal.
+//	freedom_scheme       BYPASSRLS. The switch, clearing, and the auction engine,
 //	                 which are inherently cross-participant and cannot work
 //	                 through a policy that hides half the network from them.
 //

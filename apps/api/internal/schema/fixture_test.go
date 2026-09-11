@@ -38,7 +38,7 @@ func newFixture(t *testing.T, p *pgxpool.Pool) fixture {
 
 	must(p.QueryRow(ctx, `
 		INSERT INTO participants (code, legal_name, roles, status)
-		VALUES ($1, 'Ọja Bank', ARRAY['issuer','acquirer','scheme'], 'active') RETURNING id`,
+		VALUES ($1, 'Freedom Bank', ARRAY['issuer','acquirer','scheme'], 'active') RETURNING id`,
 		"P"+s).Scan(&f.participantID))
 
 	must(p.QueryRow(ctx, `

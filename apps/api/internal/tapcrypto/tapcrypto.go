@@ -1,4 +1,4 @@
-// Package tapcrypto verifies that a tap came from a card Ọja issued.
+// Package tapcrypto verifies that a tap came from a card Freedom issued.
 //
 // Two credential technologies sit behind one interface, and the gap between
 // them is the single most important security fact about the pilot:

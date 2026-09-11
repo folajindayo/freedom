@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"oja/api/internal/money"
-	"oja/api/internal/scheme"
+	"freedom/api/internal/money"
+	"freedom/api/internal/scheme"
 )
 
 type terminal struct {

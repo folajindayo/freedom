@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"oja/api/internal/ledger"
-	"oja/api/internal/money"
-	"oja/api/internal/share"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/money"
+	"freedom/api/internal/share"
 )
 
 // executionPrice is what the buyback will pay per share this session.

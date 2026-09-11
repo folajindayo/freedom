@@ -38,11 +38,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"oja/api/internal/alloc"
-	"oja/api/internal/ledger"
-	"oja/api/internal/money"
-	"oja/api/internal/scheme"
-	"oja/api/internal/share"
+	"freedom/api/internal/alloc"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/money"
+	"freedom/api/internal/scheme"
+	"freedom/api/internal/share"
 )
 
 // Result summarises one session's allocation for one instrument.

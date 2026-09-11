@@ -1,4 +1,4 @@
--- Ọja 0002: the network.
+-- Freedom 0002: the network.
 --
 -- Participants, cards, merchants, terminals, and the authorisation and clearing
 -- records that move between them.
@@ -7,7 +7,7 @@ BEGIN;
 
 -- ---------------------------------------------------------------- participants
 
--- A member of the network. One legal entity may hold several roles; Ọja itself
+-- A member of the network. One legal entity may hold several roles; Freedom itself
 -- is a participant holding all of them, which is what makes the split-out to
 -- real member banks a data change rather than a rewrite.
 CREATE TABLE participants (
@@ -89,7 +89,7 @@ $fn$ LANGUAGE sql STABLE;
 
 -- PAN handling.
 --
--- Ọja is the issuer, so it holds PANs and is squarely in PCI DSS scope. The
+-- Freedom is the issuer, so it holds PANs and is squarely in PCI DSS scope. The
 -- full PAN lives only in card_pan_vault, encrypted under a key this database
 -- never sees; everything else in the schema joins on card_id and displays
 -- pan_last4. pan_token is a keyed HMAC under a pepper held outside the

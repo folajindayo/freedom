@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"oja/api/internal/money"
+	"freedom/api/internal/money"
 )
 
 // The invariant the whole package exists to hold.

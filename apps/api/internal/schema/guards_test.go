@@ -13,14 +13,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"oja/api/internal/migrate"
+	"freedom/api/internal/migrate"
 )
 
 func pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
-		url = "postgres://oja_scheme:oja@localhost:5432/oja"
+		url = "postgres://freedom_scheme:freedom@localhost:5432/freedom"
 	}
 	ctx := context.Background()
 	p, err := pgxpool.New(ctx, url)

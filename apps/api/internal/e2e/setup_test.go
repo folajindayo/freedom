@@ -13,15 +13,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"oja/api/internal/issuer"
-	"oja/api/internal/ledger"
-	"oja/api/internal/money"
-	"oja/api/internal/scheme"
-	"oja/api/internal/share"
-	"oja/api/internal/tapcrypto"
+	"freedom/api/internal/issuer"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/money"
+	"freedom/api/internal/scheme"
+	"freedom/api/internal/share"
+	"freedom/api/internal/tapcrypto"
 )
 
-// network is a complete, minimal Ọja: one bank wearing every role, one verified
+// network is a complete, minimal Freedom: one bank wearing every role, one verified
 // cardholder with a funded account and a credentialed card, one listed merchant
 // with a treasury pool and a reference price, and a terminal to tap against.
 type network struct {
@@ -68,7 +68,7 @@ func setup(t *testing.T, p *pgxpool.Pool) *network {
 
 	q(&n.participantID, `
 		INSERT INTO participants (code, legal_name, roles, status, net_debit_cap_kobo)
-		VALUES ($1,'Ọja Bank Plc',ARRAY['issuer','acquirer','scheme'],'active',100000000000)
+		VALUES ($1,'Freedom Bank Plc',ARRAY['issuer','acquirer','scheme'],'active',100000000000)
 		RETURNING id`, "OJA"+s)
 
 	// A cardholder who is verified and has accepted the risk disclosure —

@@ -1,18 +1,18 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: oja-db
+    container_name: freedom-db
     environment:
-      POSTGRES_USER: oja
-      POSTGRES_PASSWORD: oja
-      POSTGRES_DB: oja
+      POSTGRES_USER: freedom
+      POSTGRES_PASSWORD: freedom
+      POSTGRES_DB: freedom
     ports: ["5433:5432"]
-    volumes: ["oja-pgdata:/var/lib/postgresql/data"]
+    volumes: ["freedom-pgdata:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oja"]
+      test: ["CMD-SHELL", "pg_isready -U freedom"]
       interval: 2s
       timeout: 3s
       retries: 20
 
 volumes:
-  oja-pgdata:
+  freedom-pgdata:

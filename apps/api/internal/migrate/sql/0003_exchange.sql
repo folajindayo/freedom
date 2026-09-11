@@ -1,4 +1,4 @@
--- Ọja 0003: the private exchange, and the buyback that feeds it.
+-- Freedom 0003: the private exchange, and the buyback that feeds it.
 --
 -- Nigerian SME retailers are not listed anywhere, so there is no market in
 -- which to buy the shares the card promises. This is that market.

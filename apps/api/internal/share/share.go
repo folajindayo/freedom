@@ -16,7 +16,7 @@ import (
 	"math/big"
 	"strings"
 
-	"oja/api/internal/money"
+	"freedom/api/internal/money"
 )
 
 // Units is a quantity of equity in 1e-8 share units. Signed, because registry

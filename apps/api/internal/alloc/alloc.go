@@ -1,6 +1,6 @@
 // Package alloc splits an integer total into parts that sum to exactly the total.
 //
-// Two places in Ọja divide an indivisible quantity among claimants, and both
+// Two places in Freedom divide an indivisible quantity among claimants, and both
 // are places where a lost kobo is a settlement break that someone has to
 // reconcile by hand:
 //

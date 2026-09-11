@@ -1,4 +1,4 @@
--- Ọja 0004: close the two-token window against concurrent replay.
+-- Freedom 0004: close the two-token window against concurrent replay.
 --
 -- The previous rolling token stays live so that a write-back which fails in the
 -- field does not lock out a real cardholder. But "the tag still holds the old

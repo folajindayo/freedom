@@ -1,6 +1,6 @@
 // Package money represents naira amounts as integer kobo.
 //
-// Every monetary value in Ọja is an int64 count of kobo (1 naira = 100 kobo).
+// Every monetary value in Freedom is an int64 count of kobo (1 naira = 100 kobo).
 // Floating point never touches money, at rest or in transit: a clearing run
 // spanning a day of taps must produce byte-identical results on every machine,
 // and float drift is indistinguishable from a real settlement break.

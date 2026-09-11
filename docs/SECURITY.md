@@ -1,6 +1,6 @@
-# Ọja — Security Architecture
+# Freedom — Security Architecture
 
-Ọja is an issuer, a scheme, and an acquirer at once. That concentration is the
+Freedom is an issuer, a scheme, and an acquirer at once. That concentration is the
 commercial advantage — it is what lets 80% of the fee pool be redirected into
 equity — and it is also the security problem: there is no second party whose
 controls catch our mistakes. Every compensating control a four-party network
@@ -106,8 +106,8 @@ Per-card keys are diversified from a master: `CMAC(master, 0x01 ‖ label ‖ 0x
 with distinct labels so a card's meta-read and file-read keys are
 cryptographically unrelated.
 
-> This is AN10922-**shaped** but is Ọja's own scheme. That is safe only because
-> Ọja personalises its own tags and verifies them here. Introducing an NXP SAM
+> This is AN10922-**shaped** but is Freedom's own scheme. That is safe only because
+> Freedom personalises its own tags and verifies them here. Introducing an NXP SAM
 > or NXP personalisation tooling means adopting AN10922 bit-for-bit — a
 > near-miss produces tags this code cannot verify.
 
@@ -136,7 +136,7 @@ can clone. Refusing is the only correct behaviour.
 
 ## 4. PAN handling and PCI DSS scope
 
-Ọja is the issuer, so it holds PANs, and that puts it squarely in **PCI DSS
+Freedom is the issuer, so it holds PANs, and that puts it squarely in **PCI DSS
 4.0.1** scope. Scope is contained by structure rather than by policy:
 
 | Where | What |
@@ -260,8 +260,8 @@ any participant data exists:
 
 | Role | RLS | Used by |
 |---|---|---|
-| `oja_participant` | enforced | acquirer API, member portal |
-| `oja_scheme` | `BYPASSRLS` | switch, clearing, auction engine |
+| `freedom_participant` | enforced | acquirer API, member portal |
+| `freedom_scheme` | `BYPASSRLS` | switch, clearing, auction engine |
 
 `FORCE ROW LEVEL SECURITY` is worth nothing if every binary connects as the same
 role. Note that **`ledger_entries` is not participant-readable at all** — a

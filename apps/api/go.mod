@@ -1,4 +1,4 @@
-module oja/api
+module freedom/api
 
 go 1.26.0
 

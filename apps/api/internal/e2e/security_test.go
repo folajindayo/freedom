@@ -12,11 +12,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"oja/api/internal/issuer"
-	"oja/api/internal/ledger"
-	"oja/api/internal/money"
-	"oja/api/internal/scheme"
-	"oja/api/internal/tapcrypto"
+	"freedom/api/internal/issuer"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/money"
+	"freedom/api/internal/scheme"
+	"freedom/api/internal/tapcrypto"
 )
 
 // rawTap presents specific credential fields, bypassing the fixture's

@@ -23,10 +23,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"oja/api/internal/ledger"
-	"oja/api/internal/money"
-	"oja/api/internal/scheme"
-	"oja/api/internal/tapcrypto"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/money"
+	"freedom/api/internal/scheme"
+	"freedom/api/internal/tapcrypto"
 )
 
 // Request is an authorisation request as it arrives from an acquirer.

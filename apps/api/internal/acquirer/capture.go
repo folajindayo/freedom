@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"oja/api/internal/money"
+	"freedom/api/internal/money"
 )
 
 // Capture submits an approved authorisation for clearing.

@@ -1,4 +1,4 @@
--- Ọja 0001: the ledger.
+-- Freedom 0001: the ledger.
 --
 -- Every value in this system is an integer in an asset's minor unit: naira as
 -- kobo (scale 2), equity as 1e-8 share units (scale 8). Floating point never

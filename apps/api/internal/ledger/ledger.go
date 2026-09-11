@@ -1,4 +1,4 @@
-// Package ledger is the only place in Ọja where value moves.
+// Package ledger is the only place in Freedom where value moves.
 //
 // Every movement is a set of signed entries sharing a transaction id, and the
 // entries must sum to exactly zero WITHIN EACH ASSET. The database enforces
@@ -35,8 +35,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"oja/api/internal/money"
-	"oja/api/internal/share"
+	"freedom/api/internal/money"
+	"freedom/api/internal/share"
 )
 
 // Querier is satisfied by both *pgxpool.Pool and pgx.Tx.

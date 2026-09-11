@@ -29,9 +29,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"oja/api/internal/fee"
-	"oja/api/internal/ledger"
-	"oja/api/internal/money"
+	"freedom/api/internal/fee"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/money"
 )
 
 // Batch is a clearing cycle for one business date.

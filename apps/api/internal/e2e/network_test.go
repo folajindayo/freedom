@@ -14,16 +14,16 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"oja/api/internal/acquirer"
-	"oja/api/internal/buyback"
-	"oja/api/internal/clearing"
-	"oja/api/internal/fee"
-	"oja/api/internal/issuer"
-	"oja/api/internal/ledger"
-	"oja/api/internal/migrate"
-	"oja/api/internal/money"
-	"oja/api/internal/share"
-	"oja/api/internal/tapcrypto"
+	"freedom/api/internal/acquirer"
+	"freedom/api/internal/buyback"
+	"freedom/api/internal/clearing"
+	"freedom/api/internal/fee"
+	"freedom/api/internal/issuer"
+	"freedom/api/internal/ledger"
+	"freedom/api/internal/migrate"
+	"freedom/api/internal/money"
+	"freedom/api/internal/share"
+	"freedom/api/internal/tapcrypto"
 )
 
 const sessionDate = "2026-09-11"
@@ -32,7 +32,7 @@ func pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
-		url = "postgres://oja_scheme:oja@localhost:5432/oja"
+		url = "postgres://freedom_scheme:freedom@localhost:5432/freedom"
 	}
 	ctx := context.Background()
 	p, err := pgxpool.New(ctx, url)

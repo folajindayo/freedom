@@ -6,8 +6,8 @@
 API        := apps/api
 DB_HOST    ?= localhost
 DB_PORT    ?= 5432
-SCHEME_URL ?= postgres://oja_scheme:oja@$(DB_HOST):$(DB_PORT)/oja
-PART_URL   ?= postgres://oja_participant:oja@$(DB_HOST):$(DB_PORT)/oja
+SCHEME_URL ?= postgres://freedom_scheme:freedom@$(DB_HOST):$(DB_PORT)/freedom
+PART_URL   ?= postgres://freedom_participant:freedom@$(DB_HOST):$(DB_PORT)/freedom
 
 export DATABASE_URL = $(SCHEME_URL)
 
@@ -20,9 +20,9 @@ help:
 db: ## Create the database and the two Postgres roles
 	@pg_isready -h $(DB_HOST) -p $(DB_PORT) >/dev/null 2>&1 || docker compose up -d
 	@psql -h $(DB_HOST) -p $(DB_PORT) -d postgres -tAc \
-	  "SELECT 1 FROM pg_database WHERE datname='oja'" | grep -q 1 \
-	  || createdb -h $(DB_HOST) -p $(DB_PORT) oja
-	@psql -h $(DB_HOST) -p $(DB_PORT) -d oja -q -v ON_ERROR_STOP=1 -f db/bootstrap.sql
+	  "SELECT 1 FROM pg_database WHERE datname='freedom'" | grep -q 1 \
+	  || createdb -h $(DB_HOST) -p $(DB_PORT) freedom
+	@psql -h $(DB_HOST) -p $(DB_PORT) -d freedom -q -v ON_ERROR_STOP=1 -f db/bootstrap.sql
 	@echo "database ready at $(SCHEME_URL)"
 
 .PHONY: test
@@ -53,10 +53,10 @@ vet: ## go vet and gofmt check
 
 .PHONY: reset
 reset: ## Drop and recreate the schema
-	psql -h $(DB_HOST) -p $(DB_PORT) -d oja -q -c \
+	psql -h $(DB_HOST) -p $(DB_PORT) -d freedom -q -c \
 	  "DROP SCHEMA public CASCADE; CREATE SCHEMA public; \
-	   GRANT ALL ON SCHEMA public TO oja_scheme; \
-	   GRANT USAGE ON SCHEMA public TO oja_participant;"
+	   GRANT ALL ON SCHEMA public TO freedom_scheme; \
+	   GRANT USAGE ON SCHEMA public TO freedom_participant;"
 	@echo "schema dropped; the next test run will migrate it"
 
 .PHONY: check

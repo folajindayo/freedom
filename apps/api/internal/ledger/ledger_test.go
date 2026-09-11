@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"oja/api/internal/migrate"
-	"oja/api/internal/money"
-	"oja/api/internal/share"
+	"freedom/api/internal/migrate"
+	"freedom/api/internal/money"
+	"freedom/api/internal/share"
 )
 
 const businessDate = "2026-09-11"
@@ -26,7 +26,7 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
-		url = "postgres://oja_scheme:oja@localhost:5432/oja"
+		url = "postgres://freedom_scheme:freedom@localhost:5432/freedom"
 	}
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, url)

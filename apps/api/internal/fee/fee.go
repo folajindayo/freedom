@@ -30,8 +30,8 @@ package fee
 import (
 	"fmt"
 
-	"oja/api/internal/alloc"
-	"oja/api/internal/money"
+	"freedom/api/internal/alloc"
+	"freedom/api/internal/money"
 )
 
 // Component names a party's slice of the merchant service charge.

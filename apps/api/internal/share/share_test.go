@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"oja/api/internal/money"
+	"freedom/api/internal/money"
 )
 
 func TestUnitsForConservesFunding(t *testing.T) {

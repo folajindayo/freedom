@@ -176,12 +176,12 @@ func TestKeyDiversification(t *testing.T) {
 }
 
 func TestKeyStoreRefusesWithoutMaster(t *testing.T) {
-	t.Setenv("OJA_TEST_MASTER", "")
-	if _, err := SoftwareKeyStoreFromEnv("OJA_TEST_MASTER"); err == nil {
+	t.Setenv("FREEDOM_TEST_MASTER", "")
+	if _, err := SoftwareKeyStoreFromEnv("FREEDOM_TEST_MASTER"); err == nil {
 		t.Fatal("a missing master key must refuse to start, not invent one")
 	}
-	t.Setenv("OJA_TEST_MASTER", "zzzz")
-	if _, err := SoftwareKeyStoreFromEnv("OJA_TEST_MASTER"); err == nil {
+	t.Setenv("FREEDOM_TEST_MASTER", "zzzz")
+	if _, err := SoftwareKeyStoreFromEnv("FREEDOM_TEST_MASTER"); err == nil {
 		t.Fatal("a non-hex master key must be rejected")
 	}
 	if _, err := NewSoftwareKeyStore(make([]byte, 8)); err == nil {

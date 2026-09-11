@@ -1,8 +1,8 @@
 package fee
 
-import "oja/api/internal/money"
+import "freedom/api/internal/money"
 
-// SchemeV1 is Ọja's launch pricing.
+// SchemeV1 is Freedom's launch pricing.
 //
 // The merchant service charge follows the CBN-style card-present shape: 0.50%
 // of the ticket, capped. Verify the current cap against the CBN Guide to

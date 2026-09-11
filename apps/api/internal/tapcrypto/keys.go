@@ -48,9 +48,15 @@ type SoftwareKeyStore struct {
 
 // Key derivation labels. Distinct labels mean the two keys of one card are
 // cryptographically unrelated, so disclosing one does not yield the other.
+//
+// These strings are FROZEN once a single card has been personalised. They are
+// domain separators inside the KDF, so editing one — even to fix a typo or to
+// follow a rename — silently changes every key derived from it, and every tag
+// already in the field stops verifying. A new scheme gets a new version suffix
+// and a migration, never an edit.
 const (
-	labelMetaRead = "oja/sdm/meta-read/v1"
-	labelFileRead = "oja/sdm/file-read/v1"
+	labelMetaRead = "freedom/sdm/meta-read/v1"
+	labelFileRead = "freedom/sdm/file-read/v1"
 )
 
 // NewSoftwareKeyStore builds a store from a 16-byte master key.
@@ -92,8 +98,8 @@ func (s *SoftwareKeyStore) FileReadKey(cardID string) ([]byte, error) {
 
 // derive computes a per-card key as CMAC(master, 0x01 ‖ label ‖ 0x00 ‖ cardID).
 //
-// This is AN10922-shaped but is Ọja's own scheme, not NXP's exact one, and that
-// is safe only because Ọja personalises its own tags and verifies them here.
+// This is AN10922-shaped but is Freedom's own scheme, not NXP's exact one, and that
+// is safe only because Freedom personalises its own tags and verifies them here.
 // Introducing an NXP SAM or NXP personalisation tooling means adopting AN10922
 // bit-for-bit instead; a near-miss would produce tags this code cannot verify.
 func (s *SoftwareKeyStore) derive(label, cardID string) ([]byte, error) {
