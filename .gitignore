@@ -1,0 +1,9 @@
+/bin/
+*.env
+.env*
+!.env.example
+/apps/web/node_modules/
+/apps/web/.next/
+/apps/pos/build/
+/apps/pos/.dart_tool/
+.DS_Store
