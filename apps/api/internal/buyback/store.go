@@ -146,12 +146,20 @@ const (
 
 // trailingVWAP is the volume-weighted average of recent traded sessions.
 //
-// Two things it does that the previous version did not. It requires a minimum
-// traded volume across the window, because a window containing a single 1e-8
-// trade at a manipulated price would otherwise BE the cap. And the arithmetic
-// runs in numeric rather than bigint: price times volume at realistic scales is
-// around 1e17 per row, and summing five of those is uncomfortably close to the
-// int64 ceiling.
+// Three things it does that the first version did not.
+//
+// It reads the CORPORATE-ACTION-ADJUSTED series. This is not tidiness: after a
+// 2:1 split every prior session reads at twice the real price, so an unadjusted
+// cap sits at twice the current price and stops binding for the length of the
+// window. An issuer who wanted to ramp would simply split the week before.
+//
+// It requires a minimum traded volume across the window, because a window
+// containing a single 1e-8 trade at a manipulated price would otherwise BE the
+// cap — a control that looks like one while providing nothing.
+//
+// And the arithmetic runs in numeric rather than bigint: price times volume at
+// realistic scales is around 1e17 per row, and summing five of those sits
+// uncomfortably close to the int64 ceiling.
 func (e *Engine) trailingVWAP(ctx context.Context, tx pgx.Tx, instrumentID, sessionDate string) (money.Kobo, vwapStatus, error) {
 	var minVolume int64
 	if err := tx.QueryRow(ctx,
@@ -166,7 +174,8 @@ func (e *Engine) trailingVWAP(ctx context.Context, tx pgx.Tx, instrumentID, sess
 		                  / SUM(volume_units::numeric))::bigint
 		       END,
 		       SUM(volume_units)::bigint
-		  FROM (SELECT price_kobo, volume_units FROM price_observations
+		  FROM (SELECT adj_price_kobo AS price_kobo, adj_volume_units AS volume_units
+		          FROM price_observations_adjusted
 		         WHERE instrument_id = $1 AND obs_date < $2::date AND volume_units > 0
 		         ORDER BY obs_date DESC, id DESC LIMIT $3) recent`,
 		instrumentID, sessionDate, e.TrailingBandSessions).Scan(&vwap, &volume)
