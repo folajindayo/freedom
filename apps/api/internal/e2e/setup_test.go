@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"freedom/api/internal/exchange"
 	"freedom/api/internal/issuer"
 	"freedom/api/internal/ledger"
 	"freedom/api/internal/money"
@@ -168,6 +169,17 @@ func setup(t *testing.T, p *pgxpool.Pool) *network {
 		return err
 	})
 
+	// The market is only open on days somebody published. Freedom's own
+	// calendar has to exist before any session can open.
+	mustTx(t, p, func(tx pgx.Tx) error {
+		for _, year := range []int{2026, 2027} {
+			if _, err := exchange.Publish(ctx, tx, year, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
 	keys, err := tapcrypto.NewSoftwareKeyStore(mustHex(t, "0102030405060708090a0b0c0d0e0f10"))
 	if err != nil {
 		t.Fatal(err)
@@ -277,7 +289,7 @@ func reset(t *testing.T, p *pgxpool.Pool) {
 		         lot_disposals, trading_calendar, trading_halts, related_parties,
 		         surveillance_alerts, treasury_releases,
 		         corporate_actions, corporate_action_entitlements, corporate_action_factors,
-		         closed_periods, member_activity, fee_schedules
+		         closed_periods, member_activity, trading_calendar, fee_schedules
 		RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset: %v", err)

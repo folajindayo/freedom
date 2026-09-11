@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"freedom/api/internal/ledger"
 	"freedom/api/internal/money"
 	"freedom/api/internal/share"
 )
@@ -75,7 +76,12 @@ func (e *Engine) Open(ctx context.Context, tx pgx.Tx, instrumentID, sessionDate 
 	if halted, reason, err := isHalted(ctx, tx, instrumentID); err != nil {
 		return nil, err
 	} else if halted {
-		return nil, fmt.Errorf("exchange: %s is halted (%s)", instrumentID, reason)
+		return nil, fmt.Errorf("%w: %s (%s)", ErrHalted, instrumentID, reason)
+	}
+	// The market is only open on days somebody published. An unpublished date
+	// fails closed rather than opening a session no participant is present for.
+	if _, err := Lookup(ctx, tx, sessionDate); err != nil {
+		return nil, err
 	}
 
 	s.Params = Params{
@@ -228,6 +234,30 @@ func (e *Engine) RunToSettlement(ctx context.Context, tx pgx.Tx, s *Session) (Re
 	}
 	resultHash := hashResult(book, s.Params, result)
 
+	// Two gates between uncrossing and publishing. Neither adjusts the price:
+	// a price the market did not produce is worse than no price at all, because
+	// everything downstream will believe it.
+	if result.Determined {
+		breached, err := CheckBand(ctx, tx, s.InstrumentID, s.Params, result.Price)
+		if err != nil {
+			return Result{}, err
+		}
+		tripped := false
+		if !breached {
+			tripped, err = CheckVolatility(ctx, tx, s.InstrumentID, s.Params.PrevRef, result.Price)
+			if err != nil {
+				return Result{}, err
+			}
+		}
+		if breached || tripped {
+			reason := "band_breach"
+			if tripped {
+				reason = "circuit_breaker"
+			}
+			return e.abandon(ctx, tx, s, book, orderBySeq, reason)
+		}
+	}
+
 	if _, err := tx.Exec(ctx, `
 		UPDATE auctions
 		   SET state = 'uncrossed', uncrossed_at = now(), clearing_price_kobo = $2,
@@ -245,6 +275,42 @@ func (e *Engine) RunToSettlement(ctx context.Context, tx pgx.Tx, s *Session) (Re
 		return Result{}, err
 	}
 	return result, nil
+}
+
+// abandon discards an uncrossed price that failed a publication gate.
+//
+// Reservations come back, orders expire, and the session ends in `halted` —
+// never `published`, so nothing downstream ever sees the price. Crucially this
+// all commits: the incident and the halt that caused the abandonment must
+// survive, or the breaker trips again tomorrow with no record of why.
+func (e *Engine) abandon(ctx context.Context, tx pgx.Tx, s *Session, book []Order,
+	index map[int64]bookOrder, reason string) (Result, error) {
+
+	entries, err := e.releaseUnfilled(ctx, tx, s, book, index, Result{})
+	if err != nil {
+		return Result{}, err
+	}
+	if len(entries) > 0 {
+		if _, err := ledger.Post(ctx, tx, ledger.Tx{
+			EventType:      "auction.abandoned",
+			BusinessDate:   s.SessionDate,
+			IdempotencyKey: "auction|" + s.ID.String(),
+			CorrelationID:  &s.ID,
+			Entries:        entries,
+		}); err != nil && !isAlreadyPosted(err) {
+			return Result{}, err
+		}
+	}
+	if err := markOrdersSettled(ctx, tx, s, Result{}); err != nil {
+		return Result{}, err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE auctions SET state = 'halted', clearing_price_kobo = NULL, rule = $2
+		 WHERE id = $1`, s.ID, reason); err != nil {
+		return Result{}, fmt.Errorf("exchange: abandon session: %w", err)
+	}
+	s.State = "halted"
+	return Result{Abandoned: true, Reason: reason}, nil
 }
 
 func imbalanceSide(imb share.Units) *string {

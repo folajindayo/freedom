@@ -56,6 +56,12 @@ type Result struct {
 	Imbalance share.Units
 	Rule      string
 	Fills     []Fill
+
+	// Abandoned is set when the session uncrossed but the result was refused —
+	// a band breach or a tripped circuit breaker. The price is discarded, the
+	// reference carries forward, and Reason says which gate refused it.
+	Abandoned bool
+	Reason    string
 }
 
 // Cross runs a call auction over a frozen book.
