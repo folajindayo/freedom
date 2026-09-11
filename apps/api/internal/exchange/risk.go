@@ -242,3 +242,165 @@ func assertNotRelatedParty(ctx context.Context, tx pgx.Tx, instrumentID string, 
 	}
 	return key, fmt.Errorf("%w (%s)", ErrRelatedParty, key)
 }
+
+// ErrFatFinger is returned for an order far outside normal size.
+//
+// The most common large error in trading is a decimal point, and rejecting the
+// order costs a retry while accepting it costs an unwind.
+var ErrFatFinger = errors.New("exchange: order size outside permitted bounds")
+
+// ErrClosedPeriod is returned when an insider trades in a blackout.
+var ErrClosedPeriod = errors.New("exchange: instrument is in a closed period")
+
+// checkClosedPeriod blocks related-party trading around results and corporate
+// actions.
+//
+// Freedom already bars related parties from auction-only symbols outright, so
+// this is the narrower rule for a symbol that has graduated to continuous
+// trading and lost that blanket ban. Everyone else trades normally: a closed
+// period restricts the people who know first, not the market.
+func checkClosedPeriod(ctx context.Context, tx pgx.Tx, instrumentID string,
+	accountID uuid.UUID, date string) error {
+
+	var closed bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+		  SELECT 1 FROM closed_periods cp
+		   JOIN related_parties rp ON rp.instrument_id = cp.instrument_id
+		  WHERE cp.instrument_id = $1 AND cp.period @> $3::date
+		    AND rp.account_id = $2 AND rp.effective @> $3::date)`,
+		instrumentID, accountID, date).Scan(&closed); err != nil {
+		return fmt.Errorf("exchange: closed period check: %w", err)
+	}
+	if closed {
+		return fmt.Errorf("%w: %s on %s", ErrClosedPeriod, instrumentID, date)
+	}
+	return nil
+}
+
+// DeclareClosedPeriod opens a blackout window.
+func DeclareClosedPeriod(ctx context.Context, tx pgx.Tx, instrumentID, reason, from, to, by string) error {
+	switch reason {
+	case "results", "corporate_action", "offering", "regulatory":
+	default:
+		return fmt.Errorf("exchange: %q is not a closed-period reason", reason)
+	}
+	_, err := tx.Exec(ctx, `
+		INSERT INTO closed_periods (instrument_id, reason, period, declared_by)
+		VALUES ($1,$2,daterange($3::date,$4::date,'[]'),$5)`,
+		instrumentID, reason, from, to, by)
+	if err != nil {
+		return fmt.Errorf("exchange: declare closed period: %w", err)
+	}
+	return nil
+}
+
+// TradingAccount returns the ledger account a cardholder's orders trade from,
+// creating it on first use.
+func TradingAccount(ctx context.Context, tx pgx.Tx, cardholder uuid.UUID, instrumentID string) (uuid.UUID, error) {
+	return ledger.Resolve(ctx, tx, ledger.Cardholder(cardholder, ledger.KindStockWallet, instrumentID))
+}
+
+// releaseOrderReservations returns everything a single cancelled order was
+// holding.
+//
+// Separate from the session-wide release at settlement, because a cancel
+// happens mid-session while other orders are still live: this must return
+// exactly one order's reservation and leave every other order's alone.
+func releaseOrderReservations(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) error {
+	var side, instrumentID, symbol string
+	var reservedKobo money.Kobo
+	var reservedUnits share.Units
+	var cardholder uuid.UUID
+	err := tx.QueryRow(ctx, `
+		SELECT o.side, o.instrument_id, i.symbol, o.reserved_kobo, o.reserved_units, a.owner_id
+		  FROM orders o
+		  JOIN instruments i ON i.id = o.instrument_id
+		  JOIN accounts a    ON a.id = o.account_id
+		 WHERE o.id = $1`, orderID).
+		Scan(&side, &instrumentID, &symbol, &reservedKobo, &reservedUnits, &cardholder)
+	if err != nil {
+		return fmt.Errorf("exchange: load order for release: %w", err)
+	}
+
+	businessDate, err := orderBusinessDate(ctx, tx, orderID)
+	if err != nil {
+		return err
+	}
+
+	var entries []ledger.Entry
+	if Side(side) == Buy {
+		if reservedKobo == 0 {
+			return nil
+		}
+		reserve, err := ledger.Resolve(ctx, tx,
+			ledger.Cardholder(cardholder, ledger.KindOrderCashReserve, ledger.AssetNGN))
+		if err != nil {
+			return err
+		}
+		avail, err := ledger.Resolve(ctx, tx,
+			ledger.Cardholder(cardholder, ledger.KindAvailable, ledger.AssetNGN))
+		if err != nil {
+			return err
+		}
+		entries = []ledger.Entry{
+			{AccountID: reserve, Amount: ledger.NGN(-reservedKobo), Reason: "order.cancel_release"},
+			{AccountID: avail, Amount: ledger.NGN(reservedKobo), Reason: "order.cancel_release"},
+		}
+	} else {
+		if reservedUnits == 0 {
+			return nil
+		}
+		reserve, err := ledger.Resolve(ctx, tx,
+			ledger.Cardholder(cardholder, ledger.KindOrderShareReserve, instrumentID))
+		if err != nil {
+			return err
+		}
+		wallet, err := ledger.Resolve(ctx, tx,
+			ledger.Cardholder(cardholder, ledger.KindStockWallet, instrumentID))
+		if err != nil {
+			return err
+		}
+		entries = []ledger.Entry{
+			{AccountID: reserve, Amount: ledger.Equity(symbol, -reservedUnits), Reason: "order.cancel_release"},
+			{AccountID: wallet, Amount: ledger.Equity(symbol, reservedUnits), Reason: "order.cancel_release"},
+		}
+		// The lots this order earmarked become sellable again.
+		if _, err := tx.Exec(ctx, `
+			UPDATE holding_lots l SET units_reserved = l.units_reserved - r.units
+			  FROM order_lot_reservations r
+			 WHERE r.order_id = $1 AND NOT r.released AND l.id = r.lot_id`, orderID); err != nil {
+			return fmt.Errorf("exchange: release lot reservations: %w", err)
+		}
+		if _, err := tx.Exec(ctx,
+			`UPDATE order_lot_reservations SET released = true WHERE order_id = $1`, orderID); err != nil {
+			return err
+		}
+	}
+
+	if _, err := ledger.Post(ctx, tx, ledger.Tx{
+		EventType:      "order.cancelled",
+		BusinessDate:   businessDate,
+		IdempotencyKey: "cancel|" + orderID.String(),
+		CorrelationID:  &orderID,
+		Entries:        entries,
+	}); err != nil && !errors.Is(err, ledger.ErrAlreadyPosted) {
+		return err
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE orders SET reserved_kobo = 0, reserved_units = 0 WHERE id = $1`, orderID)
+	return err
+}
+
+func orderBusinessDate(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string, error) {
+	var d string
+	err := tx.QueryRow(ctx, `
+		SELECT COALESCE(a.session_date::text, o.created_at::date::text)
+		  FROM orders o LEFT JOIN auctions a ON a.id = o.auction_id
+		 WHERE o.id = $1`, orderID).Scan(&d)
+	if err != nil {
+		return "", fmt.Errorf("exchange: order business date: %w", err)
+	}
+	return d, nil
+}

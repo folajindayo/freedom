@@ -245,6 +245,10 @@ func (e *Engine) settle(ctx context.Context, tx pgx.Tx, s *Session, book []Order
 	if err := markOrdersSettled(ctx, tx, s, r); err != nil {
 		return err
 	}
+	// Fills are what keep a member's order-to-trade ratio honest.
+	if err := recordFills(ctx, tx, s.ID, s.SessionDate); err != nil {
+		return err
+	}
 	return e.publish(ctx, tx, s, r, resultHash)
 }
 

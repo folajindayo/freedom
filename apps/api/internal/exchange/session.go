@@ -115,6 +115,18 @@ func (e *Engine) Place(ctx context.Context, tx pgx.Tx, s *Session, req OrderRequ
 		return uuid.Nil, fmt.Errorf("exchange: session is %s, not accepting orders", s.State)
 	}
 
+	// The gateway checks, before anything touches the book. A halted member is
+	// stopped in one action rather than talked through a withdrawal.
+	if err := checkMember(ctx, tx, req.MemberID); err != nil {
+		return uuid.Nil, err
+	}
+	if err := checkThrottles(ctx, tx, req.MemberID, s.SessionDate); err != nil {
+		return uuid.Nil, err
+	}
+	if err := checkClosedPeriod(ctx, tx, s.InstrumentID, req.AccountID, s.SessionDate); err != nil {
+		return uuid.Nil, err
+	}
+
 	rules := Rules{
 		Tick: s.Params.Tick, Lot: s.Params.Lot,
 		MinPrice: s.Params.BandLo, MaxPrice: s.Params.BandHi,
@@ -138,17 +150,46 @@ func (e *Engine) Place(ctx context.Context, tx pgx.Tx, s *Session, req OrderRequ
 	}
 	o.OwnerKey = key
 
-	// Dust control: a fill whose proceeds are smaller than the fee to process it
-	// wastes everyone's time and can leave a seller net negative.
+	// Size bounds. The floor is dust control — a fill whose proceeds are smaller
+	// than the fee to process it wastes everyone's time and can leave a seller
+	// net negative. The ceilings are fat-finger control: the most common large
+	// error in trading is a decimal point, and it is far cheaper to reject the
+	// order than to unwind the trade.
 	var minNotional int64
-	if err := tx.QueryRow(ctx,
-		`SELECT min_order_notional_kobo FROM instruments WHERE id = $1`, s.InstrumentID).
-		Scan(&minNotional); err != nil {
+	var maxNotional, maxUnits *int64
+	if err := tx.QueryRow(ctx, `
+		SELECT min_order_notional_kobo, max_order_notional_kobo, max_order_units
+		  FROM instruments WHERE id = $1`, s.InstrumentID).
+		Scan(&minNotional, &maxNotional, &maxUnits); err != nil {
 		return uuid.Nil, err
 	}
-	if n := o.notionalAt(s.Params.PrevRef); n < money.Kobo(minNotional) {
+	notional := o.notionalAt(s.Params.PrevRef)
+	if notional < money.Kobo(minNotional) {
 		return uuid.Nil, fmt.Errorf("%w: %s is below the %s minimum",
-			ErrBelowMinimum, n, money.Kobo(minNotional))
+			ErrBelowMinimum, notional, money.Kobo(minNotional))
+	}
+	if maxNotional != nil && notional > money.Kobo(*maxNotional) {
+		return uuid.Nil, fmt.Errorf("%w: %s exceeds the %s maximum order size",
+			ErrFatFinger, notional, money.Kobo(*maxNotional))
+	}
+	if maxUnits != nil && o.Qty > share.Units(*maxUnits) {
+		return uuid.Nil, fmt.Errorf("%w: %s exceeds the %s maximum order quantity",
+			ErrFatFinger, o.Qty, share.Units(*maxUnits))
+	}
+
+	// A repeated client order id is a retry, not a second order. Without this a
+	// terminal that times out and resends doubles the customer's position.
+	if req.ClientOrderID != "" {
+		var existing uuid.UUID
+		err := tx.QueryRow(ctx, `
+			SELECT id FROM orders WHERE member_id = $1 AND client_order_id = $2`,
+			req.MemberID, req.ClientOrderID).Scan(&existing)
+		if err == nil {
+			return existing, nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, fmt.Errorf("exchange: duplicate check: %w", err)
+		}
 	}
 
 	// Dense, per-auction priority, assigned under the instrument lock taken in
@@ -172,6 +213,15 @@ func (e *Engine) Place(ctx context.Context, tx pgx.Tx, s *Session, req OrderRequ
 		nullableKobo(o.Limit), nullableUnits(o.Qty), nullableKobo(o.Notional),
 		s.ID, seq, nullableString(key), req.MemberID, req.ClientAccountID); err != nil {
 		return uuid.Nil, fmt.Errorf("exchange: insert order: %w", err)
+	}
+	if req.ClientOrderID != "" {
+		if _, err := tx.Exec(ctx,
+			`UPDATE orders SET client_order_id = $2 WHERE id = $1`, o.ID, req.ClientOrderID); err != nil {
+			return uuid.Nil, err
+		}
+	}
+	if err := recordOrderSent(ctx, tx, req.MemberID, s.SessionDate); err != nil {
+		return uuid.Nil, err
 	}
 
 	// Cover it before it joins the book.
@@ -207,6 +257,9 @@ type OrderRequest struct {
 	Limit           money.Kobo
 	Qty             share.Units
 	Notional        money.Kobo
+	// ClientOrderID is the member's own reference. Resending one is a retry,
+	// not a second order.
+	ClientOrderID string
 }
 
 // RunToSettlement freezes the book, uncrosses it, and settles the result.
@@ -428,4 +481,48 @@ func nullableString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// CancelOrder withdraws a live order and releases everything it reserved.
+//
+// It reports found and cancelled separately, and the distinction matters at the
+// API boundary. An order that belongs to another member must read as ABSENT,
+// not as present-but-refused: "you may not cancel that" confirms the order
+// exists, which is information the caller has no right to. An order that is
+// genuinely theirs but already filled reports found-but-not-cancelled, because
+// a member who believes they cancelled a fill will act on a position they do
+// not have.
+func CancelOrder(ctx context.Context, tx pgx.Tx, orderID, memberID uuid.UUID) (found, cancelled bool, err error) {
+	var instrumentID, state string
+	var auctionID *uuid.UUID
+	err = tx.QueryRow(ctx, `
+		SELECT instrument_id, state, auction_id FROM orders
+		 WHERE id = $1 AND member_id = $2 FOR UPDATE`, orderID, memberID).
+		Scan(&instrumentID, &state, &auctionID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, fmt.Errorf("exchange: load order: %w", err)
+	}
+	if state != "open" && state != "partial" {
+		return true, false, nil
+	}
+	if err := lockInstrument(ctx, tx, instrumentID); err != nil {
+		return true, false, err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE orders SET state = 'cancelled' WHERE id = $1`, orderID); err != nil {
+		return true, false, fmt.Errorf("exchange: cancel order: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO order_events (instrument_id, auction_id, order_id, kind, payload)
+		VALUES ($1,$2,$3,'cancel','{}'::jsonb)`, instrumentID, auctionID, orderID); err != nil {
+		return true, false, err
+	}
+	if err := releaseOrderReservations(ctx, tx, orderID); err != nil {
+		return true, false, err
+	}
+	return true, true, nil
 }
