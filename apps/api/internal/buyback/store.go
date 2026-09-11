@@ -92,23 +92,35 @@ func pendingIntents(ctx context.Context, tx pgx.Tx, instrumentID string) ([]inte
 // applyReleaseCap bounds how much treasury an instrument may release in one
 // session, and reserves it atomically.
 //
-// The cap is per instrument per day and it is the hard stop on value extraction:
-// whatever a collusive listing does to its own price, it cannot sell the network
-// more than this many units today.
+// The cap is per instrument per day and it is the hard stop on value
+// extraction: whatever a collusive listing does to its own price, it cannot
+// sell the network more than this many units today.
+//
+// Releases are recorded in an append-only table keyed by session date. The
+// previous shape kept a running total on treasury_pools and reset it whenever
+// the stored release_date differed from the session being processed — so
+// replaying session D after D+1 had already run silently restored the whole
+// day's cap, on exactly the path most likely to be re-run.
 func applyReleaseCap(ctx context.Context, tx pgx.Tx, instrumentID, sessionDate string, want share.Units) (share.Units, bool, error) {
-	var daily, released int64
-	err := tx.QueryRow(ctx, `
-		UPDATE treasury_pools
-		   SET released_units = CASE WHEN release_date = $2::date THEN released_units ELSE 0 END,
-		       release_date   = $2::date
-		 WHERE instrument_id = $1
-		RETURNING daily_release_units, released_units`, instrumentID, sessionDate).
-		Scan(&daily, &released)
+	var daily int64
+	err := tx.QueryRow(ctx,
+		`SELECT daily_release_units FROM treasury_pools WHERE instrument_id = $1`,
+		instrumentID).Scan(&daily)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, fmt.Errorf("buyback: %s has no treasury pool", instrumentID)
 	}
 	if err != nil {
 		return 0, false, fmt.Errorf("buyback: release cap: %w", err)
+	}
+
+	var released int64
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO treasury_releases (instrument_id, session_date, units)
+		VALUES ($1, $2::date, 0)
+		ON CONFLICT (instrument_id, session_date) DO UPDATE
+		  SET units = treasury_releases.units
+		RETURNING units`, instrumentID, sessionDate).Scan(&released); err != nil {
+		return 0, false, fmt.Errorf("buyback: read release history: %w", err)
 	}
 
 	headroom := share.Units(daily - released)
@@ -139,8 +151,9 @@ func applyReleaseCap(ctx context.Context, tx pgx.Tx, instrumentID, sessionDate s
 	}
 
 	if _, err := tx.Exec(ctx, `
-		UPDATE treasury_pools SET released_units = released_units + $2
-		 WHERE instrument_id = $1`, instrumentID, int64(grant)); err != nil {
+		UPDATE treasury_releases SET units = units + $3
+		 WHERE instrument_id = $1 AND session_date = $2::date`,
+		instrumentID, sessionDate, int64(grant)); err != nil {
 		return 0, false, fmt.Errorf("buyback: reserve release: %w", err)
 	}
 	return grant, capped, nil

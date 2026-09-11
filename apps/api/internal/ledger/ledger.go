@@ -155,13 +155,41 @@ func Scheme(kind, asset string) AccountRef {
 // use. Accounts are cheap and creating them lazily keeps onboarding from having
 // to predict every instrument a cardholder will ever hold.
 func Resolve(ctx context.Context, q Querier, ref AccountRef) (uuid.UUID, error) {
+	// Read first. The obvious spelling — INSERT ... ON CONFLICT DO UPDATE SET
+	// kind = EXCLUDED.kind — writes a new row version on every call even when
+	// nothing changed, taking a row lock and bumping xmin. An auction settling
+	// ten thousand orders would do ten thousand no-op updates on the same few
+	// hot accounts (scheme revenue, a company's treasury) and serialise the
+	// whole session behind them, while bloating the table for the vacuum to
+	// find later.
 	var id uuid.UUID
 	err := q.QueryRow(ctx, `
+		SELECT id FROM accounts
+		 WHERE owner_type = $1 AND owner_id IS NOT DISTINCT FROM $2
+		   AND kind = $3::account_kind AND asset_id = $4`,
+		ref.OwnerType, ref.OwnerID, ref.Kind, ref.Asset).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("resolve %s/%s account: %w", ref.OwnerType, ref.Kind, err)
+	}
+
+	// First use of this account. DO NOTHING rather than DO UPDATE so a
+	// concurrent creator does not turn into a lock wait, then re-read.
+	err = q.QueryRow(ctx, `
 		INSERT INTO accounts (owner_type, owner_id, kind, asset_id)
 		VALUES ($1, $2, $3::account_kind, $4)
-		ON CONFLICT (owner_type, owner_id, kind, asset_id) DO UPDATE SET kind = EXCLUDED.kind
+		ON CONFLICT (owner_type, owner_id, kind, asset_id) DO NOTHING
 		RETURNING id`,
 		ref.OwnerType, ref.OwnerID, ref.Kind, ref.Asset).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = q.QueryRow(ctx, `
+			SELECT id FROM accounts
+			 WHERE owner_type = $1 AND owner_id IS NOT DISTINCT FROM $2
+			   AND kind = $3::account_kind AND asset_id = $4`,
+			ref.OwnerType, ref.OwnerID, ref.Kind, ref.Asset).Scan(&id)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("resolve %s/%s account: %w", ref.OwnerType, ref.Kind, err)
 	}

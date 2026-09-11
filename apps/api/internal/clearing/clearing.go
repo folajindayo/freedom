@@ -202,8 +202,9 @@ func (c *Clearer) clearOne(ctx context.Context, tx pgx.Tx, b Batch, p presentmen
 	}
 
 	if _, err := tx.Exec(ctx, `
-		UPDATE presentments SET clearing_batch_id = $2 WHERE id = $1 AND clearing_batch_id IS NULL`,
-		p.ID, b.ID); err != nil {
+		UPDATE presentments SET clearing_batch_id = $2, business_date = $3::date
+		 WHERE id = $1 AND clearing_batch_id IS NULL`,
+		p.ID, b.ID, b.BusinessDate); err != nil {
 		return out, fmt.Errorf("clearing: mark presentment: %w", err)
 	}
 

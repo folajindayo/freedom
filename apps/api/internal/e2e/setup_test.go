@@ -106,9 +106,11 @@ func setup(t *testing.T, p *pgxpool.Pool) *network {
 	// List the instrument: an asset, a symbol, an authorised ceiling, a treasury
 	// pool with a daily release cap, and a reference price to buy at.
 	x(`INSERT INTO assets (id,class,scale,label) VALUES ($1,'equity',8,$2)`, n.instrumentID, n.symbol)
-	x(`INSERT INTO instruments (id, symbol, company_id, shares_authorised_units, status, listed_at)
-	   VALUES ($1,$2,$3,$4,'listed',now())`,
-		n.instrumentID, n.symbol, n.companyID, int64(share.Whole(10_000)))
+	x(`INSERT INTO instruments (id, symbol, company_id, shares_authorised_units,
+	                            reference_price_kobo, status, listed_at)
+	   VALUES ($1,$2,$3,$4,$5,'listed',now())`,
+		n.instrumentID, n.symbol, n.companyID, int64(share.Whole(10_000)),
+		int64(money.Naira(40)))
 
 	// Seed treasury with 1,000 shares from outside the system.
 	mustTx(t, p, func(tx pgx.Tx) error {
@@ -135,9 +137,9 @@ func setup(t *testing.T, p *pgxpool.Pool) *network {
 	var treasuryAcct uuid.UUID
 	q(&treasuryAcct, `SELECT id FROM accounts WHERE owner_type='company' AND owner_id=$1
 	                  AND kind='treasury' AND asset_id=$2`, n.companyID, n.instrumentID)
-	x(`INSERT INTO treasury_pools (instrument_id, account_id, daily_release_units, release_date)
-	   VALUES ($1,$2,$3,$4::date)`,
-		n.instrumentID, treasuryAcct, int64(share.Whole(100)), sessionDate)
+	x(`INSERT INTO treasury_pools (instrument_id, account_id, daily_release_units)
+	   VALUES ($1,$2,$3)`,
+		n.instrumentID, treasuryAcct, int64(share.Whole(100)))
 
 	// The reference price the buyback is a price-taker against.
 	x(`INSERT INTO price_observations (instrument_id, obs_date, source, price_kobo, volume_units, content_hash)
@@ -270,7 +272,10 @@ func reset(t *testing.T, p *pgxpool.Pool) {
 		         merchants, terminals, authorizations, presentments, clearing_batches,
 		         companies, instruments, cap_table_events, treasury_pools,
 		         auctions, orders, price_observations, data_quality_incidents,
-		         holding_lots, buyback_batches, buyback_intents, fee_schedules
+		         holding_lots, buyback_batches, buyback_intents,
+		         members, client_accounts, order_events, fills, order_lot_reservations,
+		         lot_disposals, trading_calendar, trading_halts, related_parties,
+		         surveillance_alerts, treasury_releases, fee_schedules
 		RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset: %v", err)
