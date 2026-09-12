@@ -291,7 +291,8 @@ const truncateList = `ledger_entries, ledger_tx, accounts, account_balance_snaps
 		         recon_runs, recon_breaks, share_transfers, holding_statements,
 		         settlement_instructions, disclosures, indices, index_constituents,
 		         index_values, protection_claims, complaints, clock_checks,
-		         disputes, dispute_events, buyback_unwinds, fee_schedules`
+		         disputes, dispute_events, buyback_unwinds,
+		         liquidity_providers, lp_performance, fee_schedules`
 
 // reset empties the network between end-to-end tests.
 //
