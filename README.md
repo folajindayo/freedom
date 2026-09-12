@@ -58,6 +58,7 @@ apps/api/                       one Go module, one binary per service
     buyback/                    allocation, treasury release, price band
     exchange/                   call auction, CLOB, reservations, T+0 settlement
     exchange/httpapi/           order entry and market data over HTTP
+    dispute/                    chargeback lifecycle and buyback unwind
     recon/                      three-way reconciliation and break workflow
     registrar/                  transfer agent, holding statements
     cashrail/                   NIBSS deposits and withdrawals
@@ -130,7 +131,7 @@ that appears to fix it without moving to NTAG424 reads as wrong.
 
 ## Status
 
-**161 tests.** The card rail and the exchange both run end to end, and so does
+**180 tests.** The card rail and the exchange both run end to end, and so does
 everything between them.
 
 Built: the ledger, fee engine, both credential technologies, authorisation,
@@ -142,9 +143,12 @@ certification harness, reconciliation, a transfer agent, holding statements, the
 cash rail, disclosure, an index, an investor protection fund, complaints and
 clock integrity.
 
-Not built: FIX connectivity, designated market makers (the model exists, the
-obligations do not), chargeback unwind, card dispute clocks, settlement to
-member banks, the softPOS app, and the consoles.
+Also built: card disputes with default outcomes on every clock, the buyback
+unwind the 120-day lock exists to make possible, designated market makers with
+per-session obligations that are actually measured, net settlement with debit
+caps, and listing admission against the rulebook.
+
+Not built: FIX connectivity, the softPOS app, and the consoles.
 
 `docs/SECURITY.md` §10 lists the security gaps, `docs/CONTINUITY.md` §7 the
 operational ones, and `docs/LISTING-RULES.md` §8 the questions for counsel —
