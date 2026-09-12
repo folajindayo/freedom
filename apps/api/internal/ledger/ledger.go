@@ -89,6 +89,9 @@ const (
 	KindOrderShareReserve = "order_share_reserve"
 	KindExchangeFeeIncome = "exchange_fee_income"
 	KindTaxWithheld       = "tax_withheld"
+	// KindBuybackLossReserve absorbs the shortfall when equity clawed back
+	// after a chargeback cannot be fully recovered.
+	KindBuybackLossReserve = "buyback_loss_reserve"
 )
 
 // Owner types.

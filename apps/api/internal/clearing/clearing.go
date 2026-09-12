@@ -53,22 +53,13 @@ type Result struct {
 	Escrowed       int
 }
 
-// Schedules resolves a pinned fee schedule version. Clearing must price with
-// the version stamped on the transaction, never with whichever is live now.
-type Schedules interface {
-	Version(v int) (fee.Schedule, error)
-}
+// Schedules and StaticSchedules moved to package fee, because the dispute path
+// needs them too: a chargeback must reverse exactly what was charged, which
+// means resolving the same pinned version clearing used.
+type Schedules = fee.Schedules
 
 // StaticSchedules serves a fixed set of versions.
-type StaticSchedules map[int]fee.Schedule
-
-func (s StaticSchedules) Version(v int) (fee.Schedule, error) {
-	sc, ok := s[v]
-	if !ok {
-		return fee.Schedule{}, fmt.Errorf("clearing: fee schedule v%d is not published", v)
-	}
-	return sc, nil
-}
+type StaticSchedules = fee.StaticSchedules
 
 // Clearer runs batches.
 type Clearer struct {

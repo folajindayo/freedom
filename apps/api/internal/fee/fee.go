@@ -66,6 +66,25 @@ type Rate struct {
 	Cap   *money.Kobo
 }
 
+// Schedules resolves a pinned schedule version.
+//
+// Clearing and the dispute path both need it, and both must price with the
+// version stamped on the transaction rather than whichever is live today.
+type Schedules interface {
+	Version(v int) (Schedule, error)
+}
+
+// StaticSchedules serves a fixed set of versions.
+type StaticSchedules map[int]Schedule
+
+func (s StaticSchedules) Version(v int) (Schedule, error) {
+	sc, ok := s[v]
+	if !ok {
+		return Schedule{}, fmt.Errorf("fee: schedule v%d is not published", v)
+	}
+	return sc, nil
+}
+
 // Schedule is a versioned, dated set of pricing rules.
 type Schedule struct {
 	Version int
