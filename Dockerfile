@@ -10,6 +10,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/exchang
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/exchanged /exchanged
-ENV PORT=8081 MARKET_CLOSE_AT=12:00
+ENV PORT=8081 MARKET_CLOSE_AT=12:00 MM_QUOTE_AT=10:05
 EXPOSE 8081
 ENTRYPOINT ["/exchanged"]

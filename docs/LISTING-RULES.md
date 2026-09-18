@@ -121,6 +121,46 @@ cannot be told stories about. That re-anchoring is **not yet implemented**;
 today the audited figure is the only one used, and the fair value on the
 record is the one computed at admission.
 
+### 2.5 Market maker placement
+
+**A listing may place a block of its treasury with the designated market
+maker, at the listing price, on admission.**
+
+A market maker with nothing to sell can only bid. The first sessions of a
+new symbol are exactly the ones in which nobody else is selling either, so a
+symbol admitted without a placement opens with one side of a market and its
+reference carries forward until a holder happens to sell. The placement is
+what gives the first session an ask.
+
+- The block comes out of the shares the company reserved in treasury (§2.2),
+  after the founders' allotment, and is sold — not lent, not granted — at the
+  listing price §2.4 set. The market maker pays for it out of its own
+  capital; the proceeds are the company's treasury cash. Nothing about the
+  placement is free, and so nothing about it is a related-party channel.
+- It is a transfer on the cap table, a lot on the register dated the
+  listing date and transferable at once (it is not tap-earned, so the
+  chargeback lock has nothing to protect), and a **listing particulars**
+  notice published with the admission, so the block's existence is public
+  before the first quote.
+- The block is the market maker's **target inventory**. Its quote leans up
+  when the public has bought it below that and down when the public has
+  sold it above, by at most **5%** ⚠, so the inventory returns towards the
+  block over time rather than accumulating at either extreme.
+- Its size is the applicant's to propose and the exchange's to accept. ⚠
+  There is no minimum yet; a block worth less than the market maker's
+  minimum quote (₦50,000 a side ⚠, the standard obligation) leaves the ask
+  short of the obligation and says so on the record. A block should be
+  sized at a few sessions of expected buyback demand, which for a new symbol
+  is a guess made in the open.
+- A symbol already listed may be placed with later, at the **current
+  reference** rather than the listing price, by the exchange from the
+  console, for a stated reason, on the same record.
+
+The market maker must not be able to pay for the block with the company's
+money or the applicant's, which is why §6 applies to it in full: a placement
+with a related party is not a placement, it is the issuer holding its own
+shares under another name.
+
 ## 3. Continuing obligations
 
 ### 3.1 Disclosure
@@ -227,6 +267,19 @@ Over a trailing 20 sessions, all of:
 Every criterion is either a count of distinct unrelated participants or a
 concentration limit, because those are the ones an issuer cannot satisfy by
 trading with itself.
+
+*The designated market maker's quote.* A symbol that has not crossed has
+not been priced by the auction, but it is not unpriced: a firm two-sided
+quote from the designated market maker is a price somebody named and was
+obliged to trade at. When nothing crosses, the session publishes its
+**mid** — the price observation carries source `quote`, the reference moves
+to it, and the staleness counter resets — provided the quote was measured as
+meeting the obligation (two-sided, no wider than the spread, at least the
+size) and both orders stood in the book at the freeze. A quote pulled before
+the freeze, or one too wide or too small to count, sets no price and the
+reference carries forward as before. The clearing price stays empty: nothing
+cleared, and the record says so. A quote-set price counts for nothing in
+the liquidity gate above, which only counts sessions that crossed.
 
 **Graduation is reversible.** Failing any of the first five for 10 consecutive
 sessions returns a symbol to auction-only, with resting orders cancelled and

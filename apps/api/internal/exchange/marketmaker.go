@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"freedom/api/internal/money"
+	"freedom/api/internal/share"
 )
 
 // Designated market makers.
@@ -52,6 +54,10 @@ type Obligation struct {
 	MinUptimeBps int64
 	RebateBps    int64
 	From, To     string
+	// TargetUnits is the inventory the quoting engine steers the provider
+	// towards (quoting.go). Zero at appointment means "what it holds now",
+	// which for a house market maker is the block placed with it at listing.
+	TargetUnits share.Units
 }
 
 // StandardObligation is the launch commitment: ₦50,000 a side, no wider than
@@ -94,18 +100,58 @@ func Appoint(ctx context.Context, tx pgx.Tx, o Obligation) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("exchange: member %s is not registered as a market maker", o.MemberID)
 	}
 
+	target := o.TargetUnits
+	if target == 0 {
+		// The inventory the member's client accounts hold today.
+		var held int64
+		if err := tx.QueryRow(ctx, `
+			SELECT COALESCE(SUM(l.units_open), 0)
+			  FROM holding_lots l JOIN accounts a ON a.id = l.account_id
+			  JOIN client_accounts ca ON ca.cardholder_id = a.owner_id
+			 WHERE a.owner_type = 'cardholder' AND a.kind = 'stock_wallet'
+			   AND l.instrument_id = $1 AND ca.member_id = $2`,
+			o.InstrumentID, o.MemberID).Scan(&held); err != nil {
+			return uuid.Nil, fmt.Errorf("exchange: provider inventory: %w", err)
+		}
+		target = share.Units(held)
+	}
+
 	var id uuid.UUID
 	err := tx.QueryRow(ctx, `
 		INSERT INTO liquidity_providers
-		  (instrument_id, member_id, min_quote_kobo, max_spread_bps, min_uptime_bps, rebate_bps, effective)
-		VALUES ($1,$2,$3,$4,$5,$6,daterange($7::date,$8::date,'[]'))
+		  (instrument_id, member_id, min_quote_kobo, max_spread_bps, min_uptime_bps, rebate_bps,
+		   effective, target_units)
+		VALUES ($1,$2,$3,$4,$5,$6,daterange($7::date,$8::date,'[]'),$9)
 		RETURNING id`,
 		o.InstrumentID, o.MemberID, int64(o.MinQuote), o.MaxSpreadBps,
-		o.MinUptimeBps, o.RebateBps, o.From, o.To).Scan(&id)
+		o.MinUptimeBps, o.RebateBps, o.From, o.To, int64(target)).Scan(&id)
 	if err != nil {
+		if strings.Contains(err.Error(), "liquidity_providers_instrument_id_member_id_effective_excl") {
+			return uuid.Nil, fmt.Errorf("exchange: member %s is already appointed on %s for an overlapping period", o.MemberID, o.InstrumentID)
+		}
 		return uuid.Nil, fmt.Errorf("exchange: appoint market maker: %w", err)
 	}
 	return id, nil
+}
+
+// TerminateProvider ends an appointment on a date. The obligation stops
+// being measured from then, and the period is closed so the member can be
+// re-appointed later without overlapping itself.
+func TerminateProvider(ctx context.Context, tx pgx.Tx, providerID uuid.UUID, on string) error {
+	ct, err := tx.Exec(ctx, `
+		UPDATE liquidity_providers
+		   SET state = 'terminated',
+		       effective = CASE WHEN lower(effective) < $2::date
+		                        THEN daterange(lower(effective), $2::date, '[)')
+		                        ELSE 'empty'::daterange END
+		 WHERE id = $1 AND state <> 'terminated'`, providerID, on)
+	if err != nil {
+		return fmt.Errorf("exchange: terminate provider: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("exchange: provider %s is not appointed", providerID)
+	}
+	return nil
 }
 
 // SessionPerformance is one provider's showing in one session.

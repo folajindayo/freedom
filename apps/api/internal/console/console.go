@@ -94,7 +94,14 @@ func (s *Server) Routes() http.Handler {
 		r.Get("/settlement", s.json(s.settlement))
 		r.Get("/recon", s.json(s.recon))
 
+		r.Get("/quotes", s.json(s.quotes))
+
 		r.Post("/market/close", s.json(s.closeMarket))
+		r.Post("/market/quote", s.json(s.quoteMarket))
+		r.Post("/members/{code}/fund", s.json(s.fundMember))
+		r.Post("/instruments/{symbol}/place-with-market-maker", s.json(s.placeWithMarketMaker))
+		r.Post("/instruments/{symbol}/market-maker", s.json(s.appointMarketMaker))
+		r.Delete("/instruments/{symbol}/market-maker", s.json(s.terminateMarketMaker))
 		r.Post("/instruments/{symbol}/halt", s.json(s.haltInstrument))
 		r.Post("/instruments/{symbol}/release", s.json(s.releaseInstrument))
 		r.Post("/instruments/{symbol}/graduate", s.json(s.graduate))

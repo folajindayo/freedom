@@ -28,6 +28,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,6 +49,11 @@ const ParticipantCode = "TAPP"
 
 // productCode is the synthetic card product every rail cardholder carries.
 const productCode = "tapp"
+
+// MarketMakerRef is the cardholder ref of the house market maker's trading
+// principal. It is a Freedom id, not a Tapp one, and cannot collide with
+// Tapp's because Tapp's carry no colon.
+const MarketMakerRef = "freedom:mm"
 
 // arnPrefix and reversalPrefix key presentments to their tap. The ARN is the
 // acquirer's reference and Tapp is the acquirer, so its tap id is the ARN.
@@ -106,12 +112,17 @@ func New(pool *pgxpool.Pool) *Service {
 type identity struct {
 	Participant uuid.UUID
 	Sponsor     uuid.UUID
+	// MarketMaker is the cardholder the house market maker trades as, and
+	// MarketMakerClient its client account under the Sponsor member.
+	MarketMaker       uuid.UUID
+	MarketMakerClient uuid.UUID
 }
 
 // Ensure makes the rail's fixed rows exist: the Tapp participant, the member
-// that sponsors its listings, and the launch fee schedule. Idempotent, and
-// cheap enough to call at the start of every write — reading first so a steady
-// state never writes.
+// that sponsors its listings and makes its markets, the house market maker's
+// trading account, and the launch fee schedule. Idempotent, and cheap enough
+// to call at the start of every write — reading first so a steady state never
+// writes.
 func Ensure(ctx context.Context, tx pgx.Tx) error {
 	_, err := ensure(ctx, tx)
 	return err
@@ -137,17 +148,55 @@ func ensure(ctx context.Context, tx pgx.Tx) (identity, error) {
 
 	// The listing standard requires a sponsor and the rail request carries
 	// none: Tapp is the sponsor of record for the businesses it brings, as an
-	// issuer agent rather than a broker, because it enters no orders.
-	err = tx.QueryRow(ctx, `SELECT id FROM members WHERE code = $1`, ParticipantCode).Scan(&id.Sponsor)
+	// issuer agent. It is also the house market maker: the one member whose
+	// orders the venue itself enters, from one client account, on the quoting
+	// engine's formula and nobody's discretion (exchange/quoting.go). The
+	// conflict in sponsoring a listing and quoting it is LISTING-RULES §7's,
+	// and is managed the same way — on the record, not waved away.
+	var roles []string
+	err = tx.QueryRow(ctx, `SELECT id, roles FROM members WHERE code = $1`, ParticipantCode).Scan(&id.Sponsor, &roles)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = tx.QueryRow(ctx, `
 			INSERT INTO members (code, legal_name, roles, status)
-			VALUES ($1, 'Tapp', ARRAY['issuer_agent'], 'active')
+			VALUES ($1, 'Tapp', ARRAY['issuer_agent','market_maker'], 'active')
 			ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 			RETURNING id`, ParticipantCode).Scan(&id.Sponsor)
+		roles = []string{exchange.RoleIssuerAgent, exchange.RoleMarketMaker}
 	}
 	if err != nil {
 		return id, fmt.Errorf("rail: sponsor member: %w", err)
+	}
+	if !slices.Contains(roles, exchange.RoleMarketMaker) {
+		if _, err := tx.Exec(ctx, `
+			UPDATE members SET roles = array_append(roles, 'market_maker') WHERE id = $1`, id.Sponsor); err != nil {
+			return id, fmt.Errorf("rail: market maker role: %w", err)
+		}
+	}
+
+	// The house market maker trades as a cardholder because that is the
+	// identity the book reserves against and settles to: every order on the
+	// venue trades from a cardholder's wallet and available cash. It is a
+	// principal, not a person, and its ref says so.
+	err = tx.QueryRow(ctx, `SELECT id FROM cardholders WHERE external_ref = $1`, MarketMakerRef).Scan(&id.MarketMaker)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO cardholders (phone, display_name, external_ref, kyc_tier,
+			                         bvn_verified_at, disclosure_accepted_at, disclosure_version)
+			VALUES ($1, 'Freedom Market Making', $1, 3, now(), now(), 'house-v1')
+			ON CONFLICT (external_ref) DO UPDATE SET external_ref = EXCLUDED.external_ref
+			RETURNING id`, MarketMakerRef).Scan(&id.MarketMaker)
+	}
+	if err != nil {
+		return id, fmt.Errorf("rail: market maker: %w", err)
+	}
+	err = tx.QueryRow(ctx, `SELECT id FROM client_accounts WHERE cardholder_id = $1`, id.MarketMaker).Scan(&id.MarketMakerClient)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO client_accounts (member_id, cardholder_id, label)
+			VALUES ($1, $2, 'market_maker') RETURNING id`, id.Sponsor, id.MarketMaker).Scan(&id.MarketMakerClient)
+	}
+	if err != nil {
+		return id, fmt.Errorf("rail: market maker account: %w", err)
 	}
 
 	var have bool

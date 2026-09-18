@@ -281,3 +281,103 @@ func providerState(t *testing.T, p interface {
 	}
 	return s
 }
+
+// The quoting engine against the engine directly: two orders inside the
+// band, on the obligation's size, idempotent, and clamped without ever
+// crossing itself when fair value sits outside the band.
+func TestQuotingEnginePlacesTheObligation(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	n := setup(t, p)
+
+	maker := newCardholder(t, p, "Freedom Market Making")
+	fund(t, p, maker, money.Naira(500_000))
+	giveShares(t, p, n, maker, share.Whole(5_000), money.Naira(40))
+	member, _, _ := membership(t, p, n, n.cardholderID, maker)
+	mustExec(t, p, `UPDATE members SET roles = ARRAY['broker','market_maker'] WHERE id = $1`, member)
+	mustExec(t, p, `UPDATE client_accounts SET label = 'market_maker' WHERE cardholder_id = $1`, maker)
+
+	var provider uuid.UUID
+	mustTx(t, p, func(tx pgx.Tx) error {
+		var err error
+		provider, err = exchange.Appoint(ctx, tx,
+			exchange.StandardObligation(n.instrumentID, member, "2027-01-01", "2028-01-01"))
+		return err
+	})
+	// Appointed without a target: the target is what it holds.
+	var target int64
+	if err := p.QueryRow(ctx, `SELECT target_units FROM liquidity_providers WHERE id = $1`, provider).Scan(&target); err != nil {
+		t.Fatal(err)
+	}
+	if share.Units(target) != share.Whole(5_000) {
+		t.Fatalf("target = %s, want the 5,000 shares held", share.Units(target))
+	}
+
+	e := exchange.NewEngine()
+	quote := func(date string) exchange.Quote {
+		var q exchange.Quote
+		mustTx(t, p, func(tx pgx.Tx) error {
+			var err error
+			q, err = e.QuoteSession(ctx, tx, provider, date, exchange.DefaultQuoteModel())
+			return err
+		})
+		return q
+	}
+
+	// No listing record here, so the centre is the ₦40 reference; inventory
+	// is on target, so no skew: ₦39.40 / ₦40.60.
+	q := quote("2027-06-01")
+	if q.CentreSource != "reference" || q.Centre != money.Naira(40) || q.SkewBps != 0 {
+		t.Fatalf("centre: %+v", q)
+	}
+	if q.Bid != 3940 || q.Ask != 4060 || !q.TwoSided() {
+		t.Fatalf("quote: %+v", q)
+	}
+	// Sizes: at least ₦50,000 a side as MeasureSession will compute it.
+	for _, side := range []struct {
+		price money.Kobo
+		units share.Units
+	}{{q.Bid, q.BidUnits}, {q.Ask, q.AskUnits}} {
+		if notional := int64(side.price) * int64(side.units) / int64(share.PerShare); notional < int64(money.Naira(50_000)) {
+			t.Errorf("%s × %s = %s, below the obligation", side.price, side.units, money.Kobo(notional))
+		}
+	}
+	// Re-run: the same two orders.
+	again := quote("2027-06-01")
+	if again.BidOrderID != q.BidOrderID || again.AskOrderID != q.AskOrderID {
+		t.Errorf("re-run placed new orders: %+v", again)
+	}
+	var orders int
+	if err := p.QueryRow(ctx, `SELECT COUNT(*) FROM orders WHERE instrument_id = $1`, n.instrumentID).Scan(&orders); err != nil {
+		t.Fatal(err)
+	}
+	if orders != 2 {
+		t.Errorf("%d orders after two runs, want 2", orders)
+	}
+	// Measured as met.
+	var perf []exchange.SessionPerformance
+	mustTx(t, p, func(tx pgx.Tx) error {
+		var err error
+		perf, err = exchange.MeasureSession(ctx, tx, n.instrumentID, "2027-06-01")
+		return err
+	})
+	if len(perf) != 1 || !perf[0].Met {
+		t.Errorf("measured: %+v", perf)
+	}
+
+	// Fair value far above the reference: ₦60 a share against a ₦40
+	// reference and a ±20% band. Both sides clamp to ₦48; the engine steps
+	// the bid a tick inside rather than crossing itself.
+	mustExec(t, p, `
+		INSERT INTO listing_applications (company_id, proposed_symbol, state, fair_value_kobo, listing_price_kobo)
+		VALUES ($1, $2, 'listed', $3, 6000)`, n.companyID, n.symbol, int64(money.Naira(60))*10_000 /* 10,000 shares in issue */)
+	mustExec(t, p, `UPDATE instruments SET shares_in_issue_units = $2 WHERE id = $1`, n.instrumentID, int64(share.Whole(10_000)))
+	q = quote("2027-06-02")
+	if q.CentreSource != "fair_value" || q.Centre != money.Naira(60) {
+		t.Fatalf("centre: %+v", q)
+	}
+	if q.Ask != 4800 || q.Bid != 4799 || !q.TwoSided() || !strings.Contains(q.Note, "clamped") {
+		t.Errorf("clamped quote: %+v", q)
+	}
+	t.Logf("on target: ₦39.40 / ₦40.60; fair value outside the band: %s / %s (%s)", q.Bid, q.Ask, q.Note)
+}

@@ -234,7 +234,7 @@ func prices(ctx context.Context, q ledger.Querier, symbol string) ([]PricePoint,
 		  JOIN instruments i ON i.id = p.instrument_id
 		 WHERE i.symbol = $1
 		 ORDER BY p.obs_date DESC,
-		          CASE p.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 ELSE 3 END,
+		          CASE p.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 WHEN 'quote' THEN 3 ELSE 4 END,
 		          p.id DESC
 		 LIMIT 90`, symbol)
 	if err != nil {

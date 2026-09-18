@@ -82,9 +82,10 @@ type Instrument struct {
 	// PriceKobo is the last published price: today's session if it has
 	// published, else the current observation, else the reference.
 	PriceKobo int64 `json:"price_kobo"`
-	// PriceSource is auction, carry_forward, manual (a correction or a
-	// re-anchor by the exchange, on the record as an observation) or
-	// reference.
+	// PriceSource is auction, quote (nothing crossed but the designated
+	// market maker's firm two-sided quote stood; the price is its mid),
+	// carry_forward, manual (a correction or a re-anchor by the exchange, on
+	// the record as an observation) or reference.
 	PriceSource string `json:"price_source"`
 	// ChangeBps is the move against the previous session's (adjusted) price;
 	// null when there is no previous session.
@@ -215,7 +216,7 @@ const instrumentSelect = `
 	       SELECT x.adj_price_kobo FROM price_observations_adjusted x
 	        WHERE x.instrument_id = i.id AND x.obs_date < COALESCE(po.obs_date, $1::date)
 	        ORDER BY x.obs_date DESC,
-	                 CASE x.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 ELSE 3 END,
+	                 CASE x.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 WHEN 'quote' THEN 3 ELSE 4 END,
 	                 x.id DESC LIMIT 1) prev ON true
 	 WHERE i.status <> 'draft'`
 
@@ -238,7 +239,7 @@ func scanInstrument(rows pgx.Rows) (Instrument, error) {
 	case price != nil && *price > 0:
 		v.PriceKobo = *price
 		v.PriceSource = "auction"
-		if source != nil && (*source == "carry_forward" || *source == "manual") {
+		if source != nil && (*source == "carry_forward" || *source == "manual" || *source == "quote") {
 			v.PriceSource = *source
 		}
 	default:
@@ -359,7 +360,7 @@ func (s *Server) instrument(ctx context.Context, r *http.Request) (any, error) {
 			  SELECT DISTINCT ON (obs_date) obs_date::text, source, adj_price_kobo, volume_units, trade_count
 			    FROM price_observations_adjusted
 			   WHERE instrument_id = $1
-			   ORDER BY obs_date DESC, CASE source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 ELSE 3 END, id DESC
+			   ORDER BY obs_date DESC, CASE source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 WHEN 'quote' THEN 3 ELSE 4 END, id DESC
 			   LIMIT 90) p ORDER BY obs_date`, func(rows pgx.Rows) error {
 			var p Price
 			if err := rows.Scan(&p.Date, &p.Source, &p.AdjPrice, &p.VolumeUnits, &p.Trades); err != nil {

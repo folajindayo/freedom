@@ -262,3 +262,42 @@ nothing else changes).
   revenue_kobo, reason}` (after the close; shares in issue must be set). The
   new reference is a `manual` price observation, so the public market row
   shows `price_source: "manual"` until the next session prints.
+- **The house market maker** (LISTING-RULES §2.5, §5 note; migration 0018).
+  `rail.Ensure` gives the `TAPP` member the `market_maker` role and a
+  market-making client account whose trading principal is the cardholder
+  `freedom:mm` ("Freedom Market Making") — a cardholder because that is the
+  identity the book reserves against and settles to. `POST /v1/rail/businesses`
+  takes `market_maker_placement_units` (optional, default 0): on admission
+  that block is sold from the treasury to the market maker at the listing
+  price — one ledger tx `rail.mm_placement` (MM `available` → company
+  `treasury_cash`; treasury → MM `stock_wallet`), a lot dated today and
+  transferable at once, a `transfer` cap table event and a published
+  `listing_particulars` notice. Refused (400) when the block exceeds the
+  treasury after founders or the market maker cannot pay; the admission rolls
+  back with it. The response's `treasury_units` is net of the placement.
+- Every session the quoting engine (`exchange.QuoteSession`, run by
+  `MM_QUOTE_AT`, default 10:05 Lagos, `off` disables; also
+  `POST /console/api/market/quote`) opens the session and places two limit
+  orders per appointed provider: centre = fair value ÷ shares in issue (the
+  reference when the company has no listing record), skew = (target − held)
+  ÷ target × 500 bps clamped, spread = min(obligation, 300 bps), both clamped
+  into the band and never crossed, sized to the ₦50,000 obligation and capped
+  by inventory and cash. Client order id `mm|<symbol>|<date>|<side>` makes a
+  re-run a no-op. The record is `mm_quotes` (`GET /console/api/quotes?date=`).
+- **The price now moves without a trade.** The close measures the
+  obligation (`MeasureSession`) before it settles. When nothing crosses and
+  a provider's two-sided quote was measured as met and both orders stood at
+  the freeze, the session publishes with `clearing_price_kobo` NULL as
+  before but the price observation is `source: "quote"` at the mid (on the
+  tick), the instrument's reference becomes the mid and
+  `carry_forward_sessions` resets. `price_source` on `/v1/market`, the
+  console and `last_session.source` pass `quote` through; the buyback pays
+  it like any fresh reference. No quote, or a one-sided one: `carry_forward`
+  as before. `ReviewProviders(20, 5)` runs after every close.
+- Console: `POST /console/api/members/{code}/fund {amount_kobo, reason}`
+  (scheme `float` → MM `available`, ledger event `mm.capital`),
+  `POST /console/api/instruments/{symbol}/place-with-market-maker {units,
+  reason}` (at the current reference), `POST …/{symbol}/market-maker
+  {member_code?, min_quote_kobo?, max_spread_bps?, target_units?, from?,
+  to?}` (standard obligation, a year; refuses a related party) and
+  `DELETE …/{symbol}/market-maker {member_code?, reason}`.

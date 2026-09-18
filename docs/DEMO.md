@@ -87,6 +87,37 @@ too (Zerocard workspace, like Caelum). `railway` commands are yours to run.
    holder count; tap the row for the price line, the day's session and the
    cap table. It is the link to send someone who asks "so what did I buy?".
 
+## Market maker
+
+Without one, a symbol nobody sells only ever carries its reference forward.
+The house market maker (member `TAPP`, trading as cardholder `freedom:mm`) is
+funded, given inventory and appointed from the console; from then on the
+quoting engine puts a two-sided quote into every session at `MM_QUOTE_AT`
+(10:05 Lagos), and a session with no trade publishes the quote's mid.
+
+1. **Console → Members → TAPP → Fund market maker.** Say ₦200,000, reason
+   "launch capital". Cash moves from the scheme's float to the market maker's
+   account, one ledger transaction, your name on it.
+2. **Console → Instruments → MAMAPUT → Place with market maker.** Say 2,000
+   shares, reason "launch inventory". The block is sold out of the treasury at
+   the reference (₦40 → ₦80,000), the lot and cap table event are written, and
+   a *Market maker placement* notice publishes. (A new listing can do this at
+   admission: `market_maker_placement_units` on the business request.)
+3. **Console → Instruments → MAMAPUT → Appoint market maker.** Member `TAPP`,
+   target inventory blank (= what it holds). The exchange refuses a related
+   party of the issuer.
+4. **Console → Overview → Run quote** (or wait for 10:05). The Quotes tab on
+   the instrument shows today's bid/ask, sizes, centre, skew and the last 20
+   sessions.
+5. **Run close.** Nothing crosses — the market maker does not trade with
+   itself — so the session publishes the mid: the public market row shows
+   *market maker's quote* as the price source, the reference has moved, and
+   the next tap buys at it. Sell the customer's shares into the market
+   maker's bid from `/v1/orders` and the next close prints a real trade.
+
+Turn it off with `MM_QUOTE_AT=off`; run it by hand with
+`POST /console/api/market/quote`.
+
 ## Known limits, stated plainly
 
 - Selling is not in the cardholder app yet (needs a member + client account on
@@ -100,5 +131,9 @@ too (Zerocard workspace, like Caelum). `railway` commands are yours to run.
 - The exchange operations console is at `/console` on the Freedom service
   (sign in with your name and `CONSOLE_TOKEN`). It reads the live database and
   its actions call the engine (halt/release, triage/close alerts, publish
-  disclosures, graduate/demote, member kill switch, run the close).
+  disclosures, graduate/demote, member kill switch, run the close, fund /
+  place / appoint the market maker, run the quote).
+- The house market maker is the sponsor member (`TAPP`) wearing a second
+  role. LISTING-RULES §7 names that conflict; the quote is a formula on the
+  record, not a trader's discretion, which is the mitigation for now.
 - The Mac's disk was at ~99% during this work; two builders had to clear caches.

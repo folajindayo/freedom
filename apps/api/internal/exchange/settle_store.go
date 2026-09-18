@@ -285,31 +285,60 @@ func (e *Engine) publish(ctx context.Context, tx pgx.Tx, s *Session, r Result, r
 
 // publishCarryForward closes a session in which nothing crossed.
 //
-// The reference is carried forward and the staleness counter increments, so
-// that a symbol nobody has traded for weeks is visibly stale rather than
-// quietly pricing a buyback off a number from another month.
+// Two outcomes. When a designated market maker's firm two-sided quote stood
+// in the frozen book, the session publishes its mid: a price somebody named
+// and was obliged to trade at, so the reference moves to it and the
+// staleness counter resets. Otherwise the reference is carried forward and
+// the counter increments, so that a symbol nobody has quoted or traded for
+// weeks is visibly stale rather than quietly pricing a buyback off a number
+// from another month. The clearing price stays NULL either way: nothing
+// cleared.
+//
+// The quote is read from lp_performance, which the close writes by calling
+// MeasureSession before it settles. A caller that settles without measuring
+// gets the carry-forward.
 func (e *Engine) publishCarryForward(ctx context.Context, tx pgx.Tx, s *Session, resultHash string) error {
-	if _, err := tx.Exec(ctx, `
-		INSERT INTO price_observations (instrument_id, obs_date, source, price_kobo,
-		                                volume_units, trade_count, auction_id, content_hash)
-		VALUES ($1,$2::date,'carry_forward',$3,0,0,$4,$5)
-		ON CONFLICT (instrument_id, obs_date, source, content_hash) DO NOTHING`,
-		s.InstrumentID, s.SessionDate, int64(s.Params.PrevRef), s.ID, resultHash); err != nil {
-		return fmt.Errorf("exchange: carry forward: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE instruments SET carry_forward_sessions = carry_forward_sessions + 1
-		 WHERE id = $1`, s.InstrumentID); err != nil {
-		return err
-	}
-
-	var book []Order
-	index := map[int64]bookOrder{}
-	loaded, idx, err := e.loadBook(ctx, tx, s)
+	book, index, err := e.loadBook(ctx, tx, s)
 	if err != nil {
 		return err
 	}
-	book, index = loaded, idx
+
+	mid, err := firmQuoteMid(ctx, tx, s, index)
+	if err != nil {
+		return err
+	}
+	if mid > 0 {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO price_observations (instrument_id, obs_date, source, price_kobo,
+			                                volume_units, trade_count, auction_id, content_hash)
+			VALUES ($1,$2::date,'quote',$3,0,0,$4,$5)
+			ON CONFLICT (instrument_id, obs_date, source, content_hash) DO NOTHING`,
+			s.InstrumentID, s.SessionDate, int64(mid), s.ID, resultHash); err != nil {
+			return fmt.Errorf("exchange: publish quote: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE instruments SET reference_price_kobo = $2, carry_forward_sessions = 0
+			 WHERE id = $1`, s.InstrumentID, int64(mid)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE auctions SET rule = 'quote' WHERE id = $1`, s.ID); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO price_observations (instrument_id, obs_date, source, price_kobo,
+			                                volume_units, trade_count, auction_id, content_hash)
+			VALUES ($1,$2::date,'carry_forward',$3,0,0,$4,$5)
+			ON CONFLICT (instrument_id, obs_date, source, content_hash) DO NOTHING`,
+			s.InstrumentID, s.SessionDate, int64(s.Params.PrevRef), s.ID, resultHash); err != nil {
+			return fmt.Errorf("exchange: carry forward: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE instruments SET carry_forward_sessions = carry_forward_sessions + 1
+			 WHERE id = $1`, s.InstrumentID); err != nil {
+			return err
+		}
+	}
 
 	entries, err := e.releaseUnfilled(ctx, tx, s, book, index, Result{})
 	if err != nil {

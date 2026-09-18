@@ -266,7 +266,7 @@ func (s *Server) instrument(ctx context.Context, r *http.Request) (any, error) {
 			         volume_units, adj_volume_units, trade_count
 			    FROM price_observations_adjusted
 			   WHERE instrument_id = $1
-			   ORDER BY obs_date DESC, CASE source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 ELSE 3 END, id DESC
+			   ORDER BY obs_date DESC, CASE source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 WHEN 'quote' THEN 3 ELSE 4 END, id DESC
 			   LIMIT 90) p ORDER BY obs_date`, id); err != nil {
 			return err
 		}
@@ -301,6 +301,17 @@ func (s *Server) instrument(ctx context.Context, r *http.Request) (any, error) {
 			}
 		}
 		out["providers"] = providers
+
+		// The quoting engine's record: today's quote and the last 20
+		// sessions, per provider.
+		if out["quotes"], err = collect(ctx, tx, quoteSelect+`
+			 WHERE q.instrument_id = $1 ORDER BY q.session_date DESC, m.code LIMIT 20`, id); err != nil {
+			return err
+		}
+		if out["quote_today"], err = collect(ctx, tx, quoteSelect+`
+			 WHERE q.instrument_id = $1 AND q.session_date = $2::date ORDER BY m.code`, id, today); err != nil {
+			return err
+		}
 
 		if out["corporate_actions"], err = collect(ctx, tx, corporateActionSelect+` WHERE ca.instrument_id = $1 ORDER BY ca.ex_date DESC`, id); err != nil {
 			return err
@@ -959,4 +970,45 @@ func (s *Server) clock(ctx context.Context, r *http.Request) (any, error) {
 		return nil, err
 	}
 	return listPage{Rows: rows, Extra: row{"server_now": s.Now().UTC().Format("2006-01-02T15:04:05.000Z07:00")}}, nil
+}
+
+// ---------------------------------------------------------------- market maker quotes
+
+const quoteSelect = `
+	SELECT q.provider_id::text AS provider_id, q.session_date::text AS session_date, i.symbol, q.instrument_id,
+	       m.code AS member, q.centre_kobo, q.skew_bps, q.spread_bps, q.held_units, q.target_units,
+	       q.bid_kobo, q.ask_kobo, q.bid_units, q.ask_units,
+	       (q.bid_order_id IS NOT NULL AND q.ask_order_id IS NOT NULL) AS two_sided,
+	       q.bid_order_id::text AS bid_order_id, q.ask_order_id::text AS ask_order_id, q.note, q.quoted_at,
+	       ob.state AS bid_state, oa.state AS ask_state,
+	       p.met, p.shortfall, p.spread_bps AS measured_spread_bps, p.size_kobo AS measured_size_kobo,
+	       a.state AS session_state, a.rule AS session_rule, a.clearing_price_kobo,
+	       po.source AS price_source, po.price_kobo AS session_price_kobo
+	  FROM mm_quotes q
+	  JOIN liquidity_providers lp ON lp.id = q.provider_id
+	  JOIN instruments i ON i.id = q.instrument_id
+	  JOIN members m ON m.id = lp.member_id
+	  LEFT JOIN orders ob ON ob.id = q.bid_order_id
+	  LEFT JOIN orders oa ON oa.id = q.ask_order_id
+	  LEFT JOIN lp_performance p ON p.provider_id = q.provider_id AND p.session_date = q.session_date
+	  LEFT JOIN auctions a ON a.instrument_id = q.instrument_id AND a.session_date = q.session_date
+	  LEFT JOIN LATERAL (
+	       SELECT x.source, x.price_kobo FROM price_observations x
+	        WHERE x.instrument_id = q.instrument_id AND x.obs_date = q.session_date
+	        ORDER BY CASE x.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 WHEN 'quote' THEN 3 ELSE 4 END, x.id DESC
+	        LIMIT 1) po ON true`
+
+// quotes lists the quoting engine's record for a date: what it put into each
+// session and what the session did with it.
+func (s *Server) quotes(ctx context.Context, r *http.Request) (any, error) {
+	date, err := s.dateParam(r, "date")
+	if err != nil {
+		return nil, err
+	}
+	rows, err := collect(ctx, s.Pool, quoteSelect+`
+		 WHERE q.session_date = $1::date ORDER BY i.symbol, m.code`, date)
+	if err != nil {
+		return nil, err
+	}
+	return listPage{Rows: rows, Extra: row{"date": date}}, nil
 }

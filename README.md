@@ -165,7 +165,7 @@ that appears to fix it without moving to NTAG424 reads as wrong.
 
 ## Status
 
-**180 tests.** The card rail and the exchange both run end to end, and so does
+**216 tests.** The card rail and the exchange both run end to end, and so does
 everything between them.
 
 Built: the ledger, fee engine, both credential technologies, authorisation,
@@ -179,8 +179,13 @@ clock integrity.
 
 Also built: card disputes with default outcomes on every clock, the buyback
 unwind the 120-day lock exists to make possible, designated market makers with
-per-session obligations that are actually measured, net settlement with debit
-caps, and listing admission against the rulebook.
+per-session obligations that are actually measured — and, now, met: a house
+quoting engine that places a two-sided quote into every session from the
+scheme's own market-making account (capital from the float, inventory placed
+out of the treasury at the listing price), so a session in which nothing
+crosses publishes the quote's mid rather than carrying a stale reference
+forward — net settlement with debit caps, and listing admission against the
+rulebook.
 
 And the door to a real card rail: `/v1/rail` lets Tapp register a merchant's
 business (a listing application against the rulebook), deliver charged taps

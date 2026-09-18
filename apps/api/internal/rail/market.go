@@ -94,6 +94,22 @@ func (s *Service) CloseMarket(ctx context.Context, sessionDate string) ([]CloseR
 		}
 		out = append(out, row)
 	}
+
+	// After every symbol has closed, the providers' standing over the
+	// trailing window: warned before suspended, and nothing on fewer than
+	// five sessions of evidence.
+	if err := s.inTx(ctx, func(tx pgx.Tx) error {
+		warned, suspended, restored, err := exchange.ReviewProviders(ctx, tx, 20, 5)
+		if err != nil {
+			return err
+		}
+		if warned+suspended+restored > 0 {
+			slog.Info("market makers reviewed", "date", sessionDate, "warned", warned, "suspended", suspended, "restored", restored)
+		}
+		return nil
+	}); err != nil {
+		slog.Warn("market maker review failed", "date", sessionDate, "err", err)
+	}
 	return out, nil
 }
 
@@ -122,6 +138,13 @@ func (s *Service) closeOne(ctx context.Context, tx pgx.Tx, row *CloseRow, sessio
 			return s.runBuyback(ctx, tx, row, sessionDate)
 		}
 		if err != nil {
+			return err
+		}
+		// Measure the market maker before the freeze, on what stands in the
+		// book: a provider whose quote stood here met its duty however the
+		// uncross turns out, and if nothing crosses the engine publishes the
+		// mid of a quote this measurement found met.
+		if _, err := exchange.MeasureSession(ctx, tx, row.InstrumentID, sessionDate); err != nil {
 			return err
 		}
 		if _, err := s.Engine.RunToSettlement(ctx, tx, sess); err != nil {
@@ -293,16 +316,33 @@ func phase(now time.Time, trading bool) string {
 //
 // at is "HH:MM"; "off" disables it. Blocks until ctx is done.
 func (s *Service) Scheduler(ctx context.Context, at string) error {
+	return s.daily(ctx, "market close", "MARKET_CLOSE_AT", at, func(date string) {
+		rows, err := s.CloseMarket(ctx, date)
+		if err != nil {
+			slog.Error("market close failed", "date", date, "err", err)
+			return
+		}
+		for _, r := range rows {
+			slog.Info("market closed", "symbol", r.Symbol, "state", r.State, "price", r.PriceKobo,
+				"intents", r.Buyback.Intents, "units", r.Buyback.Units, "refusal", r.Buyback.Refusal, "err", r.Error)
+		}
+	})
+}
+
+// daily runs fn once a day at a Lagos wall-clock time, on trading days,
+// until ctx is done. name labels the log; env names the setting the time
+// came from, for the error when it is not HH:MM.
+func (s *Service) daily(ctx context.Context, name, env, at string, fn func(date string)) error {
 	if at == "off" {
-		slog.Info("market close scheduler disabled")
+		slog.Info(name + " scheduler disabled")
 		<-ctx.Done()
 		return nil
 	}
 	target, err := time.Parse("15:04", at)
 	if err != nil {
-		return fmt.Errorf("rail: MARKET_CLOSE_AT %q is not HH:MM", at)
+		return fmt.Errorf("rail: %s %q is not HH:MM", env, at)
 	}
-	slog.Info("market close scheduled", "at", at, "zone", "Africa/Lagos")
+	slog.Info(name+" scheduled", "at", at, "zone", "Africa/Lagos")
 
 	for {
 		now := s.Now().In(scheme.Lagos)
@@ -318,18 +358,10 @@ func (s *Service) Scheduler(ctx context.Context, at string) error {
 
 		date := next.Format("2006-01-02")
 		if !s.tradingDay(ctx, date) {
-			slog.Info("market close skipped: not a trading day", "date", date)
+			slog.Info(name+" skipped: not a trading day", "date", date)
 			continue
 		}
-		rows, err := s.CloseMarket(ctx, date)
-		if err != nil {
-			slog.Error("market close failed", "date", date, "err", err)
-			continue
-		}
-		for _, r := range rows {
-			slog.Info("market closed", "symbol", r.Symbol, "state", r.State, "price", r.PriceKobo,
-				"intents", r.Buyback.Intents, "units", r.Buyback.Units, "refusal", r.Buyback.Refusal, "err", r.Error)
-		}
+		fn(date)
 	}
 }
 

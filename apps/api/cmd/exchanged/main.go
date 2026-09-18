@@ -79,6 +79,13 @@ func run() error {
 			slog.Error("market close scheduler stopped", "err", err)
 		}
 	}()
+	// The house market maker's quote, after the open and well before the
+	// close. MM_QUOTE_AT=off for the same replicas that turn the close off.
+	go func() {
+		if err := svc.QuoteScheduler(ctx, envOr("MM_QUOTE_AT", "10:05")); err != nil {
+			slog.Error("market maker quote scheduler stopped", "err", err)
+		}
+	}()
 
 	// The console. CONSOLE_TOKEN is required for the same reason RAIL_TOKEN
 	// is: the page can halt a symbol and run the close.

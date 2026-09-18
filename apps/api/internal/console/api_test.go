@@ -588,3 +588,144 @@ func TestConsoleReanchorsTheListingPrice(t *testing.T) {
 		t.Errorf("during accepting: status %d %v, want 409", status, b)
 	}
 }
+
+// The market maker from the console: fund, place, appoint, quote, read the
+// quote, close, read the price, terminate.
+func TestConsoleRunsTheMarketMaker(t *testing.T) {
+	p := pool(t)
+	c := newClient(t, p)
+	ctx := context.Background()
+	const tok = "console-secret"
+
+	sym := "MAMA" + strings.ToUpper(randHex(3))
+	out, _, err := c.svc.OnboardBusiness(ctx, mamaPut(sym))
+	if err != nil || out.State != "listed" {
+		t.Fatalf("onboard: %v %+v", err, out)
+	}
+
+	// Capital: a balanced posting from the float.
+	status, body := c.do(t, "POST", "/api/members/TAPP/fund", map[string]any{"amount_kobo": 20_000_000, "reason": "launch capital"}, tok, "ngozi")
+	if status != http.StatusOK || body["available_kobo"] != float64(20_000_000) || body["ledger_tx_id"] == nil {
+		t.Fatalf("fund: %d %v", status, body)
+	}
+	if status, body = c.do(t, "POST", "/api/members/TAPP/fund", map[string]any{"amount_kobo": 1000}, tok, "ngozi"); status != http.StatusBadRequest {
+		t.Errorf("fund without a reason: %d %v", status, body)
+	}
+	if status, body = c.do(t, "POST", "/api/members/NOPE/fund", map[string]any{"amount_kobo": 1000, "reason": "x"}, tok, "ngozi"); status != http.StatusNotFound {
+		t.Errorf("fund an unknown member: %d %v", status, body)
+	}
+
+	// Inventory: a block at the reference, refused before it is affordable.
+	status, body = c.do(t, "POST", "/api/instruments/"+sym+"/place-with-market-maker", map[string]any{"units": 10_000_00000000, "reason": "too much"}, tok, "ngozi")
+	if status != http.StatusConflict {
+		t.Errorf("unaffordable placement: %d %v", status, body)
+	}
+	status, body = c.do(t, "POST", "/api/instruments/"+sym+"/place-with-market-maker", map[string]any{"units": 2_000_00000000, "reason": "launch inventory"}, tok, "ngozi")
+	if status != http.StatusOK {
+		t.Fatalf("place: %d %v", status, body)
+	}
+	placed := body["placement"].(map[string]any)
+	if placed["price_kobo"] != float64(4000) || placed["cost_kobo"] != float64(8_000_000) || placed["held_units"] != float64(2_000_00000000) {
+		t.Errorf("placement: %v", placed)
+	}
+	inst := body["instrument"].(map[string]any)
+	if inst["treasury_units"] != float64(130_000_000_000_000-2_000_00000000) {
+		t.Errorf("treasury after placement: %v", inst["treasury_units"])
+	}
+
+	// Appointment refuses a related party: mark the house account as one.
+	if _, err := p.Exec(ctx, `
+		INSERT INTO related_parties (instrument_id, account_id, group_key, relation, effective)
+		SELECT $1, a.id, 'issuer-group', 'affiliate', daterange('2020-01-01','2099-01-01')
+		  FROM accounts a JOIN cardholders ch ON ch.id = a.owner_id
+		 WHERE ch.external_ref = $2 AND a.kind = 'stock_wallet' AND a.asset_id = $1`, "EQ:"+sym, rail.MarketMakerRef); err != nil {
+		t.Fatal(err)
+	}
+	status, body = c.do(t, "POST", "/api/instruments/"+sym+"/market-maker", map[string]any{"member_code": "TAPP"}, tok, "ngozi")
+	if status != http.StatusConflict || !strings.Contains(str(body["message"]), "independent") {
+		t.Fatalf("appointing a related party: %d %v", status, body)
+	}
+	if _, err := p.Exec(ctx, `DELETE FROM related_parties`); err != nil {
+		t.Fatal(err)
+	}
+	status, body = c.do(t, "POST", "/api/instruments/"+sym+"/market-maker", map[string]any{"member_code": "TAPP", "target_units": 4_000_00000000}, tok, "ngozi")
+	if status != http.StatusOK || body["state"] != "active" || body["min_quote_kobo"] != float64(5_000_000) || body["member"] != "TAPP" {
+		t.Fatalf("appoint: %d %v", status, body)
+	}
+	if status, body = c.do(t, "POST", "/api/instruments/"+sym+"/market-maker", map[string]any{"member_code": "TAPP"}, tok, "ngozi"); status != http.StatusConflict {
+		t.Errorf("appointing twice: %d %v", status, body)
+	}
+
+	// The quote.
+	status, body = c.do(t, "POST", "/api/market/quote", nil, tok, "ngozi")
+	if status != http.StatusOK {
+		t.Fatalf("quote: %d %v", status, body)
+	}
+	quotes := body["quotes"].([]any)
+	if len(quotes) != 1 {
+		t.Fatalf("quotes: %v", quotes)
+	}
+	q := quotes[0].(map[string]any)
+	if q["symbol"] != sym || q["two_sided"] != true || q["bid_kobo"] != float64(4040) || q["ask_kobo"] != float64(4160) || q["skew_bps"] != float64(250) {
+		t.Errorf("quote: %v", q)
+	}
+	rd := c.get(t, "/api/quotes?date="+testDate)
+	rows := rd["rows"].([]any)
+	if len(rows) != 1 || rows[0].(map[string]any)["bid_state"] != "open" || rows[0].(map[string]any)["ask_state"] != "open" {
+		t.Errorf("quotes read: %v", rows)
+	}
+	rec := c.get(t, "/api/instruments/"+sym)
+	if today := rec["quote_today"].([]any); len(today) != 1 || today[0].(map[string]any)["centre_kobo"] != float64(4000) {
+		t.Errorf("record quote_today: %v", rec["quote_today"])
+	}
+	// Close: nothing crosses, the mid is the price.
+	status, body = c.do(t, "POST", "/api/market/close", nil, tok, "ngozi")
+	if status != http.StatusOK {
+		t.Fatalf("close: %d %v", status, body)
+	}
+	rec = c.get(t, "/api/instruments/"+sym)
+	inst = rec["instrument"].(map[string]any)
+	if inst["reference_price_kobo"] != float64(4100) || inst["last_obs_source"] != "quote" || inst["carry_forward_sessions"] != float64(0) {
+		t.Errorf("after the close: ref %v source %v carried %v", inst["reference_price_kobo"], inst["last_obs_source"], inst["carry_forward_sessions"])
+	}
+	rows = c.get(t, "/api/quotes?date="+testDate)["rows"].([]any)
+	if r := rows[0].(map[string]any); r["met"] != true || r["price_source"] != "quote" || r["session_price_kobo"] != float64(4100) || r["session_rule"] != "quote" {
+		t.Errorf("quote after the close: %v", r)
+	}
+	// The public market row says where the price came from.
+	pub := public.New(p, c.svc)
+	pub.Now = c.svc.Now
+	srv := httptest.NewServer(pub.API())
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mkt map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&mkt)
+	resp.Body.Close()
+	list, _ := mkt["instruments"].([]any)
+	if len(list) != 1 {
+		t.Fatalf("public market: %v", mkt)
+	}
+	if r := list[0].(map[string]any); r["price_source"] != "quote" || r["price_kobo"] != float64(4100) {
+		t.Errorf("public: %v %v", r["price_source"], r["price_kobo"])
+	}
+
+	// Terminate.
+	status, body = c.do(t, "DELETE", "/api/instruments/"+sym+"/market-maker", map[string]any{"member_code": "TAPP", "reason": "pilot over"}, tok, "ngozi")
+	if status != http.StatusOK {
+		t.Fatalf("terminate: %d %v", status, body)
+	}
+	var state string
+	if err := p.QueryRow(ctx, `SELECT state FROM liquidity_providers`).Scan(&state); err != nil || state != "terminated" {
+		t.Errorf("provider state %s %v", state, err)
+	}
+	if status, body = c.do(t, "DELETE", "/api/instruments/"+sym+"/market-maker", map[string]any{"member_code": "TAPP"}, tok, "ngozi"); status != http.StatusNotFound {
+		t.Errorf("terminating twice: %d %v", status, body)
+	}
+	// And re-appointable: the terminated period no longer overlaps.
+	if status, body = c.do(t, "POST", "/api/instruments/"+sym+"/market-maker", map[string]any{"member_code": "TAPP", "from": "2026-09-19"}, tok, "ngozi"); status != http.StatusOK {
+		t.Errorf("re-appoint: %d %v", status, body)
+	}
+}

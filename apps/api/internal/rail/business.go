@@ -54,7 +54,11 @@ type BusinessRequest struct {
 	SharesAuthorisedUnits int64 `json:"shares_authorised_units"`
 	DailyReleaseUnits     int64 `json:"daily_release_units"`
 	CoFundBps             int64 `json:"cofund_bps"`
-	Holders               []struct {
+	// MarketMakerPlacementUnits is a block sold from the treasury to the
+	// house market maker at the listing price when the company is admitted
+	// (LISTING-RULES §2.5). Zero means none.
+	MarketMakerPlacementUnits int64 `json:"market_maker_placement_units,omitempty"`
+	Holders                   []struct {
 		CardholderRef string `json:"cardholder_ref"`
 		Units         int64  `json:"units"`
 		Label         string `json:"label"`
@@ -118,6 +122,13 @@ func (s *Service) OnboardBusiness(ctx context.Context, req BusinessRequest) (out
 	if distributed > share.Units(req.Evidence.TreasuryUnits) {
 		return out, false, fmt.Errorf("%w: holders receive %s but only %s is in treasury",
 			ErrInvalid, distributed, share.Units(req.Evidence.TreasuryUnits))
+	}
+	if req.MarketMakerPlacementUnits < 0 {
+		return out, false, fmt.Errorf("%w: market_maker_placement_units must not be negative", ErrInvalid)
+	}
+	if placed := share.Units(req.MarketMakerPlacementUnits); placed > share.Units(req.Evidence.TreasuryUnits)-distributed {
+		return out, false, fmt.Errorf("%w: market maker placement of %s exceeds the %s left in treasury after founders",
+			ErrInvalid, placed, share.Units(req.Evidence.TreasuryUnits)-distributed)
 	}
 
 	today := scheme.BusinessDate(s.Now())
@@ -409,7 +420,9 @@ type SessionSummary struct {
 	State     string     `json:"state"`
 	PriceKobo money.Kobo `json:"price_kobo"`
 	// Source says where the price came from: 'auction' when the session
-	// crossed, 'carry_forward' when nothing traded and the reference stood.
+	// crossed, 'quote' when nothing crossed but the market maker's firm
+	// two-sided quote stood and the price is its mid, 'carry_forward' when
+	// nothing traded and the reference stood.
 	// A zero-volume session has no clearing price, but it still has a price
 	// the buyback paid, and the merchant should see that one, not a zero.
 	Source       string      `json:"source,omitempty"`
@@ -692,6 +705,16 @@ func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req Busine
 		}
 	}
 
+	// The market maker's inventory: a block out of the treasury at the
+	// listing price, paid for from the market maker's capital. The
+	// placement is what lets the first session have an ask.
+	if req.MarketMakerPlacementUnits > 0 {
+		if _, err := s.PlaceWithMarketMaker(ctx, tx, instrumentID, share.Units(req.MarketMakerPlacementUnits),
+			price, today, "rail", "placement at admission"); err != nil {
+			return out, err
+		}
+	}
+
 	// The listings pipeline pays out: funding that accrued against this
 	// merchant while it was unlisted now has an instrument to buy, and
 	// the next session's buyback picks it up like any other intent.
@@ -708,7 +731,7 @@ func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req Busine
 	}
 	out.State = "listed"
 	out.InstrumentID = &instrumentID
-	out.TreasuryUnits = share.Units(req.Evidence.TreasuryUnits) - distributed
+	out.TreasuryUnits = share.Units(req.Evidence.TreasuryUnits) - distributed - share.Units(req.MarketMakerPlacementUnits)
 	return out, nil
 }
 

@@ -185,13 +185,13 @@ const int = v => v==null ? '—' : N0.format(Number(v));
 const fmtDate = s => s ? String(s).slice(0,10) : '—';
 const fmtTime = iso => iso ? new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'}) : '—';
 const title = s => String(s||'').replace(/_/g,' ');
-const TONES = {listed:'green',halted:'red',suspended:'orange',delisted:'gray',auction_only:'gray',continuous:'blue',under_review:'orange',demoted:'purple',published:'green',accepting:'blue',frozen:'orange',uncrossed:'blue',scheduled:'gray',cancelled:'gray',announced:'blue',record_taken:'orange',applied:'green',closed:'gray',pre_open:'yellow',auction:'blue',carry_forward:'gray',reference:'gray',manual:'orange',clob:'blue'};
+const TONES = {listed:'green',halted:'red',suspended:'orange',delisted:'gray',auction_only:'gray',continuous:'blue',under_review:'orange',demoted:'purple',published:'green',accepting:'blue',frozen:'orange',uncrossed:'blue',scheduled:'gray',cancelled:'gray',announced:'blue',record_taken:'orange',applied:'green',closed:'gray',pre_open:'yellow',auction:'blue',carry_forward:'gray',reference:'gray',manual:'orange',clob:'blue',quote:'blue'};
 const chip = (v, tone) => v==null||v==='' ? '<span class="faint">—</span>' : `<span class="chip ${tone||TONES[String(v)]||'gray'}"><i></i>${esc(title(v))}</span>`;
 const change = bps => bps==null ? '<span class="faint">—</span>' : `<span class="${bps>0?'up':bps<0?'down':'muted'}">${bps>0?'+':bps<0?'−':''}${(Math.abs(bps)/100).toFixed(2)}%</span>`;
 const mono = (sym, cls='') => `<span class="tile ${cls}">${esc(String(sym||'').slice(0,2))}</span>`;
 const structure = s => chip(s);
 const haltChip = h => h ? chip('halted','red') : chip('trading','green');
-const priceNote = s => s==='auction' ? 'last auction' : s==='carry_forward' ? 'carried forward' : s==='manual' ? 'set by the exchange' : 'reference price';
+const priceNote = s => s==='auction' ? 'last auction' : s==='quote' ? 'market maker\'s quote' : s==='carry_forward' ? 'carried forward' : s==='manual' ? 'set by the exchange' : 'reference price';
 
 async function getJSON(path){
   const r = await fetch(path, {headers:{Accept:'application/json'}});

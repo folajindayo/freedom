@@ -54,7 +54,7 @@ vet: ## go vet and gofmt check
 .PHONY: run
 run: db ## Run exchanged locally: rail (RAIL_TOKEN=dev-rail-token) and console (CONSOLE_TOKEN=dev-console-token) mounted
 	cd $(API) && RAIL_TOKEN=$${RAIL_TOKEN:-dev-rail-token} CONSOLE_TOKEN=$${CONSOLE_TOKEN:-dev-console-token} \
-	  MARKET_CLOSE_AT=$${MARKET_CLOSE_AT:-off} PORT=$${PORT:-8081} go run ./cmd/exchanged
+	  MARKET_CLOSE_AT=$${MARKET_CLOSE_AT:-off} MM_QUOTE_AT=$${MM_QUOTE_AT:-off} PORT=$${PORT:-8081} go run ./cmd/exchanged
 
 .PHONY: reset
 reset: ## Drop and recreate the schema
