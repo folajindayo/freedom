@@ -211,9 +211,20 @@ function go(sym){
 }
 window.addEventListener('popstate', render);
 
+// The market runs one call auction a trading day: orders 10:00–12:00 Lagos,
+// then the book freezes and prices. "Closed" therefore means today's price
+// is set, not that nothing is happening — taps keep buying shares at it.
+const PHASES = {
+  pre_open:  ['Opens 10:00 Lagos', 'gray'],
+  accepting: ['Auction open · closes 12:00', 'green'],
+  frozen:    ['Pricing', 'yellow'],
+  closed:    ['Session closed · next 10:00 Lagos', 'gray'],
+};
 function topbar(d){
   $('#top-date').textContent = d.business_date || '';
-  $('#top-phase').innerHTML = d.phase ? chip(d.phase) : '';
+  const ph = PHASES[d.phase];
+  $('#top-phase').innerHTML = d.phase ? (ph ? `<span class="chip ${ph[1]}"><i></i>${ph[0]}</span>` : chip(d.phase)) : '';
+  if (d.is_trading === false) $('#top-phase').innerHTML = '<span class="chip gray"><i></i>Not a trading day</span>';
 }
 
 async function render(){
