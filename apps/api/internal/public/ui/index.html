@@ -48,7 +48,7 @@ body{min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 button,input{font:inherit;color:inherit}
 svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.mono,.num{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
 .num,.tnum{font-variant-numeric:tabular-nums}
 .r{text-align:right}
 .muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
@@ -60,7 +60,7 @@ h2{font-size:15px}h3{font-size:14px}
 
 /* ---------- top bar ---------- */
 .top{height:64px;border-bottom:1px solid var(--hair);display:flex;align-items:center;gap:12px;padding:0 16px;flex:none;position:sticky;top:0;background:var(--ground);z-index:5}
-.top .in{max-width:1080px;width:100%;margin:0 auto;display:flex;align-items:center;gap:12px;min-width:0}
+.top .in{max-width:1200px;width:100%;margin:0 auto;display:flex;align-items:center;gap:12px;min-width:0}
 .tile{width:28px;height:28px;border-radius:6px;background:var(--btn);color:var(--btn-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none}
 .tile.lg{width:44px;height:44px;font-size:17px;border-radius:9px}
 .top .name{font-weight:600;font-size:14px;line-height:18px;white-space:nowrap}
@@ -70,7 +70,7 @@ h2{font-size:15px}h3{font-size:14px}
 @media (max-width:480px){.top .date{display:none}}
 
 /* ---------- page ---------- */
-.wrap{max-width:1080px;width:100%;margin:0 auto;padding:0 16px;flex:1}
+.wrap{max-width:1200px;width:100%;margin:0 auto;padding:0 16px;flex:1}
 .hero{padding:36px 0 22px}
 .hero h1{font-size:26px;line-height:1.2;letter-spacing:-.02em;max-width:640px}
 .hero p{margin:10px 0 0;color:var(--ink-2);font-size:14px;max-width:560px;line-height:1.5}
@@ -89,19 +89,21 @@ h2{font-size:15px}h3{font-size:14px}
 @media (max-width:600px){.search{margin-left:0;width:100%}}
 .panel{border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);overflow-x:auto;overflow-y:hidden;max-width:100%}
 .tbl{width:100%;border-collapse:separate;border-spacing:0}
-.tbl th{background:var(--panel);height:32px;font-size:12px;font-weight:500;color:var(--ink-2);text-align:left;padding:0 12px;border-bottom:1px solid var(--hair);white-space:nowrap;user-select:none;cursor:pointer}
+.tbl th{background:var(--panel);height:32px;font-size:12px;font-weight:500;color:var(--ink-2);text-align:left;padding:0 10px;border-bottom:1px solid var(--hair);white-space:nowrap;user-select:none;cursor:pointer}
 .tbl th .h{display:inline-flex;align-items:center;gap:6px}
 .tbl th.r .h{flex-direction:row-reverse}
 .tbl th .dir{color:var(--accent);font-size:10px;min-width:8px}
 .tbl th:hover{color:var(--ink)}
-.tbl td{height:40px;padding:0 12px;border-bottom:1px solid var(--hair);white-space:nowrap;vertical-align:middle;max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.tbl td{height:40px;padding:0 10px;border-bottom:1px solid var(--hair);white-space:nowrap;vertical-align:middle;max-width:360px;overflow:hidden;text-overflow:ellipsis}
 .tbl tr:last-child td{border-bottom:0}
 .tbl td.first{font-weight:600;position:sticky;left:0;background:var(--panel);z-index:1}
 .tbl th.first{position:sticky;left:0;z-index:2}
 .tbl tbody tr{cursor:pointer;transition:background var(--t)}
 .tbl tbody tr:hover td{background:var(--hover)}
 .tbl td.r,.tbl th.r{text-align:right}
-.tbl td.num{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;font-variant-numeric:tabular-nums}
+.tbl td.num{font-variant-numeric:tabular-nums}
+.tbl td.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px}
+@media (max-width:600px){.tbl td:nth-child(2){max-width:150px}}
 .tbl.compact td{height:34px}
 .tbl.compact th{height:30px}
 .sym{display:inline-flex;align-items:center;gap:10px}
@@ -131,7 +133,8 @@ h2{font-size:15px}h3{font-size:14px}
 .rec-h .name .sub{color:var(--ink-2);font-size:12.5px;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
 .rec-h .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);margin:18px 0 0;overflow:hidden}
-.stats>div{padding:12px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0}
+.stats>div{padding:12px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-bottom:-1px;min-width:0}
+.stats>div:last-child{border-right:0}
 .stats .l{font-size:12px;color:var(--ink-2)}
 .stats .n{font-size:18px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:24px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stats .s{font-size:11.5px;color:var(--ink-3);margin-top:1px}
@@ -151,7 +154,7 @@ h2{font-size:15px}h3{font-size:14px}
 .attrs .v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media (max-width:520px){.attrs{grid-template-columns:130px 1fr}}
 .foot{border-top:1px solid var(--hair);margin-top:40px;padding:16px;color:var(--ink-2);font-size:12.5px;line-height:1.5}
-.foot .in{max-width:1080px;margin:0 auto}
+.foot .in{max-width:1200px;margin:0 auto}
 </style>
 </head>
 <body>
@@ -271,7 +274,7 @@ function drawTable(rows){
 
 // ---------- symbol ----------
 function renderSymbol(el, d, m){
-  const rc = d.company.rc_number ? ' · RC '+esc(d.company.rc_number) : '';
+  const rc = d.company.rc_number ? ' · '+(/^rc/i.test(d.company.rc_number)?'':'RC ')+esc(d.company.rc_number) : '';
   el.innerHTML = `
     <a class="back" href="/market" data-nav=""><svg class="i" viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></svg>All listed businesses</a>
     <div class="rec-h">${mono(d.symbol,'lg')}<div class="name"><h1>${esc(d.symbol)}${d.trading_name?`<span class="tn">${esc(d.trading_name)}</span>`:''}</h1>
@@ -293,9 +296,9 @@ function renderSymbol(el, d, m){
     <div class="attrs">${attr('Company', esc(d.company.legal_name))}${attr('Trading as', d.company.trading_name?esc(d.company.trading_name):'')}${attr('RC number', d.company.rc_number?`<span class="mono">${esc(d.company.rc_number)}</span>`:'')}${attr('Merchant category', d.company.mcc?`<span class="mono">MCC ${esc(d.company.mcc)}</span>`:'')}${attr('Listed', fmtDate(d.listed_at))}
       ${attr('Shares authorised', shares(d.cap_table.shares_authorised_units))}${attr('Shares in issue', shares(d.cap_table.shares_in_issue_units))}${attr('On the register', shares(d.cap_table.on_register_units))}${attr('Treasury pool', shares(d.cap_table.treasury_units))}${attr('Daily release cap', shares(d.cap_table.daily_release_units))}${attr('Reference price', naira(d.reference_price_kobo))}${attr('Volume today', shares(d.volume_units_today)+' shares')}</div>
     <div class="sec-h"><h2>Corporate actions</h2><span class="muted">splits, bonuses and dividends</span></div>
-    <div class="panel">${d.corporate_actions.length ? `<table class="tbl compact"><thead><tr><th>Kind</th><th>State</th><th class="r">Terms</th><th>Ex-date</th></tr></thead><tbody>${d.corporate_actions.map(a=>`<tr style="cursor:default"><td>${chip(a.kind,'gray')}</td><td>${chip(a.state)}</td><td class="r num">${a.dps_kobo!=null?naira(a.dps_kobo)+' per share':a.ratio_num+' for '+a.ratio_den}</td><td class="num">${esc(a.ex_date)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No corporate actions.</div>'}</div>
+    <div class="panel">${d.corporate_actions.length ? `<table class="tbl compact"><thead><tr><th>Kind</th><th>State</th><th class="r">Terms</th><th>Ex-date</th></tr></thead><tbody>${d.corporate_actions.map(a=>`<tr style="cursor:default"><td>${chip(a.kind,'gray')}</td><td>${chip(a.state)}</td><td class="r num">${a.dps_kobo!=null?naira(a.dps_kobo)+' per share':a.ratio_num+' for '+a.ratio_den}</td><td class="mono">${esc(a.ex_date)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No corporate actions.</div>'}</div>
     <div class="sec-h"><h2>Disclosures</h2><span class="muted">published to everyone at once</span></div>
-    <div class="panel">${d.disclosures.length ? `<table class="tbl compact"><thead><tr><th>Kind</th><th>Headline</th><th>Published</th></tr></thead><tbody>${d.disclosures.map(x=>`<tr style="cursor:default"><td>${chip(x.kind,'gray')}</td><td style="white-space:normal">${esc(x.headline)}</td><td class="num">${fmtTime(x.published_at)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No published disclosures.</div>'}</div>`;
+    <div class="panel">${d.disclosures.length ? `<table class="tbl compact"><thead><tr><th>Kind</th><th>Headline</th><th>Published</th></tr></thead><tbody>${d.disclosures.map(x=>`<tr style="cursor:default"><td>${chip(x.kind,'gray')}</td><td style="white-space:normal">${esc(x.headline)}</td><td class="mono">${fmtTime(x.published_at)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No published disclosures.</div>'}</div>`;
   wireNav(el);
   const pts = d.prices.map(p => ({x:p.date, y:p.adjusted_price_kobo/100, label:naira(p.adjusted_price_kobo)+' · '+title(p.source)+(p.volume_units?' · '+sharesC(p.volume_units)+' shares':'')}));
   const marks = d.corporate_actions.map(a => ({x:a.ex_date, label:'ex '+title(a.kind)}));
@@ -310,7 +313,7 @@ const attr = (k, v) => `<div class="k">${k}</div><div class="v">${v || '<span cl
 
 function sessionsTable(rows){
   if(!rows.length) return '<div class="empty">No sessions yet.</div>';
-  return `<table class="tbl compact"><thead><tr><th>Date</th><th>State</th><th class="r">Clearing price</th><th class="r">Matched</th><th>Volume</th></tr></thead><tbody>${rows.map(s=>`<tr style="cursor:default"><td class="num">${esc(s.date)}</td><td>${chip(s.state)}</td><td class="r num">${s.clearing_price_kobo!=null?naira(s.clearing_price_kobo):'<span class="faint">—</span>'}</td><td class="r num">${s.matched_units!=null?sharesC(s.matched_units):'<span class="faint">—</span>'}</td><td>${s.state!=='published'?'<span class="faint">—</span>':s.zero_volume?chip('zero volume · reference carried','gray'):chip('traded','green')}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="tbl compact"><thead><tr><th>Date</th><th>State</th><th class="r">Clearing price</th><th class="r">Matched</th><th>Volume</th></tr></thead><tbody>${rows.map(s=>`<tr style="cursor:default"><td class="mono">${esc(s.date)}</td><td>${chip(s.state)}</td><td class="r num">${s.clearing_price_kobo!=null?naira(s.clearing_price_kobo):'<span class="faint">—</span>'}</td><td class="r num">${s.matched_units!=null?sharesC(s.matched_units):'<span class="faint">—</span>'}</td><td>${s.state!=='published'?'<span class="faint">—</span>':s.zero_volume?chip('zero volume · reference carried','gray'):chip('traded','green')}</td></tr>`).join('')}</tbody></table>`;
 }
 
 // ---------- line chart (plain SVG, sized to the element) ----------
@@ -320,7 +323,7 @@ function lineChart(el, pts, opts={}){
   const ys = pts.map(p=>p.y); let lo=Math.min(...ys), hi=Math.max(...ys); if(lo===hi){ lo=lo*0.95||0; hi=hi*1.05||1; } const pad=(hi-lo)*0.08; lo-=pad; hi+=pad;
   const x = i => L + (pts.length===1 ? (W-L-R)/2 : (i/(pts.length-1))*(W-L-R)), y = v => T + (1-(v-lo)/(hi-lo))*(H-T-B);
   const fmt = opts.fmt||(v=>v.toFixed(2)); const ticks=[0,.25,.5,.75,1].map(t=>lo+(hi-lo)*t);
-  const grid = ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--hair)" stroke-width="1"/><text x="${L-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="JetBrains Mono,monospace">${fmt(v)}</text>`).join('');
+  const grid = ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--hair)" stroke-width="1"/><text x="${L-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="Inter,sans-serif" style="font-variant-numeric:tabular-nums">${fmt(v)}</text>`).join('');
   const xi = [0, Math.floor((pts.length-1)/2), pts.length-1].filter((v,i,a)=>a.indexOf(v)===i);
   const xl = xi.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" font-size="11" fill="var(--ink-3)" font-family="JetBrains Mono,monospace">${esc(pts[i].x)}</text>`).join('');
   const d = pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.y).toFixed(1)).join(' ');
