@@ -66,9 +66,10 @@ apps/api/                       one Go module, one binary per service
     rail/                       the Tapp door: onboarding = listing, taps → clearing → buyback
     rail/httpapi/               /v1/rail/* behind RAIL_TOKEN, and the daily close
     console/                    the operations console: /console (one embedded page) + /console/api/*
+    public/                     the public market: /market (one embedded page) + /v1/market, no auth
     migrate/sql/                embedded schema
     e2e/                        the whole rail, end to end
-  cmd/exchanged/                the one binary: exchange API + rail API + console + close scheduler
+  cmd/exchanged/                the one binary: exchange API + rail API + console + public market + close scheduler
 docs/SECURITY.md                threat model, and what is NOT defended
 docs/INTEGRATION.md             the Freedom ⇄ Tapp contract
 ```
@@ -80,8 +81,17 @@ make db      # database + the two Postgres roles
 make test    # everything
 make e2e     # just the golden path, verbosely
 make check   # what CI runs
-make run     # exchanged on :8081, rail and console mounted, scheduler off
+make run     # exchanged on :8081, rail, console and public market mounted, scheduler off
 ```
+
+The public market is at <http://localhost:8081/market> — no sign-in. It lists
+every non-draft symbol with its last published price, change against the
+previous session, company value (shares in issue × price), holders and
+structure; `/market/{symbol}` adds the 90-session adjusted price line, recent
+sessions, the cap table, corporate actions and published disclosures. The
+page reads `GET /v1/market` and `GET /v1/market/{symbol}`, which are plain
+JSON, unauthenticated and cacheable for thirty seconds; nothing in them names
+a cardholder, a merchant reference, a member or an order.
 
 With `make run` up, the console is at <http://localhost:8081/console>. It asks
 for your name and the console token once (`dev-console-token` under `make run`)

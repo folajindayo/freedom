@@ -99,6 +99,7 @@ func (s *Server) Routes() http.Handler {
 		r.Post("/instruments/{symbol}/release", s.json(s.releaseInstrument))
 		r.Post("/instruments/{symbol}/graduate", s.json(s.graduate))
 		r.Post("/instruments/{symbol}/demote", s.json(s.demote))
+		r.Post("/instruments/{symbol}/shares-in-issue", s.json(s.setSharesInIssue))
 		r.Post("/alerts/{id}/triage", s.json(s.triageAlert))
 		r.Post("/alerts/{id}/close", s.json(s.closeAlert))
 		r.Post("/disclosures/{id}/publish", s.json(s.publishDisclosure))

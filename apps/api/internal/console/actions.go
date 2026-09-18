@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -302,6 +303,56 @@ func (s *Server) memberSwitch(ctx context.Context, r *http.Request, halt bool) (
 			SELECT m.id::text AS id, m.code, m.legal_name, m.roles, m.status, m.halted, m.halted_reason,
 			       m.max_orders_per_session, m.max_order_to_trade_ratio, m.created_at
 			  FROM members m WHERE m.id = $1`, id)
+		return err
+	})
+	return out, err
+}
+
+// setSharesInIssue corrects the company's declared share count.
+//
+// The count is what the company is valued on. It is declared at admission
+// and changes with issuance, so an operator may correct it — but never
+// silently: the change is a cap table event carrying the operator's name
+// and the reason, like every other movement in the register.
+func (s *Server) setSharesInIssue(ctx context.Context, r *http.Request) (any, error) {
+	by, err := operator(r)
+	if err != nil {
+		return nil, err
+	}
+	var body struct {
+		Units  int64  `json:"units"`
+		Reason string `json:"reason"`
+	}
+	if err := decode(r, &body); err != nil {
+		return nil, err
+	}
+	if body.Units <= 0 {
+		return nil, invalid("shares in issue must be a positive number of units")
+	}
+	if strings.TrimSpace(body.Reason) == "" {
+		return nil, invalid("a reason is required")
+	}
+	symbol := strings.ToUpper(chi.URLParam(r, "symbol"))
+	var out row
+	err = s.inTx(ctx, func(tx pgx.Tx) error {
+		id, err := instrumentID(ctx, tx, symbol)
+		if err != nil {
+			return err
+		}
+		var before int64
+		if err := tx.QueryRow(ctx, `
+			UPDATE instruments SET shares_in_issue_units = $2 WHERE id = $1
+			RETURNING (SELECT shares_in_issue_units FROM instruments WHERE id = $1)`, id, body.Units).
+			Scan(&before); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO cap_table_events (instrument_id, kind, units_delta, note)
+			VALUES ($1, 'authorised', $2, $3)`,
+			id, body.Units-before, fmt.Sprintf("shares in issue set to %d by %s: %s", body.Units, by, body.Reason)); err != nil {
+			return err
+		}
+		out, err = s.instrumentRow(ctx, tx, symbol)
 		return err
 	})
 	return out, err

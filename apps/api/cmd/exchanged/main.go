@@ -1,6 +1,6 @@
 // Command exchanged serves Freedom Exchange's order entry and market data API,
-// the rail door Tapp delivers taps through (docs/INTEGRATION.md), and the
-// operations console at /console.
+// the rail door Tapp delivers taps through (docs/INTEGRATION.md), the
+// operations console at /console, and the public market at /market.
 package main
 
 import (
@@ -22,6 +22,7 @@ import (
 	"freedom/api/internal/console"
 	"freedom/api/internal/exchange/httpapi"
 	"freedom/api/internal/migrate"
+	"freedom/api/internal/public"
 	"freedom/api/internal/rail"
 	railapi "freedom/api/internal/rail/httpapi"
 )
@@ -86,8 +87,14 @@ func run() error {
 		return err
 	}
 
+	// The public face: no token, read-only, cacheable. What the exchange has
+	// listed, at prices it has published, for anyone who opens the link.
+	pub := public.New(pool, svc)
+
 	root := chi.NewRouter()
 	root.Mount("/v1/rail", railAPI.Routes())
+	root.Mount("/v1/market", pub.API())
+	root.Mount("/market", pub.Page())
 	root.Mount("/console", ops.Routes())
 	root.Mount("/", api.Routes())
 

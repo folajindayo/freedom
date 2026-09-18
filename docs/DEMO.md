@@ -82,6 +82,10 @@ too (Zerocard workspace, like Caelum). `railway` commands are yours to run.
    holders, the customer in the register.
 6. Optional: reverse the tap from the merchant app; the equity line flips to
    *reversed*, the cardholder's holding is gone.
+7. **The public market** is at `$FREEDOM/market` — no sign-in. Open it on a
+   phone: the listed business is there with its price, company value and
+   holder count; tap the row for the price line, the day's session and the
+   cap table. It is the link to send someone who asks "so what did I buy?".
 
 ## Known limits, stated plainly
 

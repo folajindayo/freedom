@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freedom Exchange · Market</title>
+<meta name="description" content="Nigerian businesses you can own by tapping. Every card tap at a listed business buys the cardholder a slice of it. Prices, company value and holders for every listed symbol.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Freedom Exchange · Market">
+<meta property="og:description" content="Nigerian businesses you can own by tapping. Every card tap at a listed business buys the cardholder a slice of it.">
+<meta property="og:site_name" content="Freedom Exchange">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#ffffff;--sidebar:#f9f9f8;--panel:#ffffff;--hair:#ebebec;--hair-2:#dedee0;--hover:#fafafa;
+  --ink:#1c1c1e;--ink-2:#6b6f76;--ink-3:#9a9ea5;--accent:#2f5bea;--accent-soft:#e8effc;--selected:#eef2fd;
+  --btn:#1a1a1c;--btn-ink:#ffffff;
+  --c-green-bg:#e6f5ec;--c-green:#0d6b3f;--c-blue-bg:#e8effc;--c-blue:#2857c4;--c-orange-bg:#fdefdc;--c-orange:#9a5b12;
+  --c-red-bg:#fde9e9;--c-red:#b42318;--c-purple-bg:#efe9fc;--c-purple:#6b3fc4;--c-gray-bg:#f0f0f1;--c-gray:#4b4f55;
+  --c-yellow-bg:#fbf4d7;--c-yellow:#8a6b0a;
+  --shadow:0 8px 32px rgba(20,20,24,.10),0 0 0 1px var(--hair-2);
+  --r-ctl:6px;--r-panel:8px;--r-dlg:10px;--t:150ms;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0f0f10;--sidebar:#151516;--panel:#1a1a1b;--hair:#29292b;--hair-2:#333336;--hover:#161617;
+  --ink:#ececec;--ink-2:#a0a3a8;--ink-3:#6c6f75;--accent:#6d8cf5;--accent-soft:#1c2540;--selected:#1a2138;
+  --btn:#ececec;--btn-ink:#111113;
+  --c-green-bg:#12301f;--c-green:#7ed6a5;--c-blue-bg:#182543;--c-blue:#92b0ff;--c-orange-bg:#3a2a12;--c-orange:#f0b76a;
+  --c-red-bg:#3d1a1a;--c-red:#f39a94;--c-purple-bg:#2a1f45;--c-purple:#c3a8ff;--c-gray-bg:#2a2a2c;--c-gray:#c4c6ca;
+  --c-yellow-bg:#352e12;--c-yellow:#e6c65a;
+  --shadow:0 8px 32px rgba(0,0,0,.55),0 0 0 1px var(--hair-2);
+}}
+:root[data-theme="dark"]{
+  --ground:#0f0f10;--sidebar:#151516;--panel:#1a1a1b;--hair:#29292b;--hair-2:#333336;--hover:#161617;
+  --ink:#ececec;--ink-2:#a0a3a8;--ink-3:#6c6f75;--accent:#6d8cf5;--accent-soft:#1c2540;--selected:#1a2138;
+  --btn:#ececec;--btn-ink:#111113;
+  --c-green-bg:#12301f;--c-green:#7ed6a5;--c-blue-bg:#182543;--c-blue:#92b0ff;--c-orange-bg:#3a2a12;--c-orange:#f0b76a;
+  --c-red-bg:#3d1a1a;--c-red:#f39a94;--c-purple-bg:#2a1f45;--c-purple:#c3a8ff;--c-gray-bg:#2a2a2c;--c-gray:#c4c6ca;
+  --c-yellow-bg:#352e12;--c-yellow:#e6c65a;
+  --shadow:0 8px 32px rgba(0,0,0,.55),0 0 0 1px var(--hair-2);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--ink);font:13px/1.45 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
+body{min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+button,input{font:inherit;color:inherit}
+svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.mono,.num{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.num,.tnum{font-variant-numeric:tabular-nums}
+.r{text-align:right}
+.muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:500}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px}h3{font-size:14px}
+[hidden]{display:none!important}
+.up{color:var(--c-green)}.down{color:var(--c-red)}
+
+/* ---------- top bar ---------- */
+.top{height:64px;border-bottom:1px solid var(--hair);display:flex;align-items:center;gap:12px;padding:0 16px;flex:none;position:sticky;top:0;background:var(--ground);z-index:5}
+.top .in{max-width:1080px;width:100%;margin:0 auto;display:flex;align-items:center;gap:12px;min-width:0}
+.tile{width:28px;height:28px;border-radius:6px;background:var(--btn);color:var(--btn-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none}
+.tile.lg{width:44px;height:44px;font-size:17px;border-radius:9px}
+.top .name{font-weight:600;font-size:14px;line-height:18px;white-space:nowrap}
+.top .name a{color:inherit}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0}
+.top .date{font-size:12.5px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+@media (max-width:480px){.top .date{display:none}}
+
+/* ---------- page ---------- */
+.wrap{max-width:1080px;width:100%;margin:0 auto;padding:0 16px;flex:1}
+.hero{padding:36px 0 22px}
+.hero h1{font-size:26px;line-height:1.2;letter-spacing:-.02em;max-width:640px}
+.hero p{margin:10px 0 0;color:var(--ink-2);font-size:14px;max-width:560px;line-height:1.5}
+@media (max-width:600px){.hero{padding:26px 0 18px}.hero h1{font-size:22px}}
+.tl{border:1px solid var(--hair-2);border-radius:var(--r-panel);padding:12px 14px;background:var(--panel);display:inline-flex;flex-direction:column;min-width:200px;margin-bottom:20px}
+.tl .l{font-size:12.5px;color:var(--ink-2)}
+.tl .n{font-size:20px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:26px;margin-top:2px}
+.tl .s{font-size:12px;color:var(--ink-3);margin-top:1px}
+.toolbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}
+.toolbar h2{font-size:14px}
+.toolbar .count{color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
+.search{margin-left:auto;height:30px;display:flex;align-items:center;gap:8px;padding:0 8px 0 9px;border:1px solid var(--hair-2);border-radius:var(--r-ctl);background:var(--panel);color:var(--ink-3);width:240px;max-width:100%}
+.search input{flex:1;border:0;background:transparent;outline:none;min-width:0;color:var(--ink)}
+.search input::placeholder{color:var(--ink-3)}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+@media (max-width:600px){.search{margin-left:0;width:100%}}
+.panel{border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);overflow-x:auto;overflow-y:hidden;max-width:100%}
+.tbl{width:100%;border-collapse:separate;border-spacing:0}
+.tbl th{background:var(--panel);height:32px;font-size:12px;font-weight:500;color:var(--ink-2);text-align:left;padding:0 12px;border-bottom:1px solid var(--hair);white-space:nowrap;user-select:none;cursor:pointer}
+.tbl th .h{display:inline-flex;align-items:center;gap:6px}
+.tbl th.r .h{flex-direction:row-reverse}
+.tbl th .dir{color:var(--accent);font-size:10px;min-width:8px}
+.tbl th:hover{color:var(--ink)}
+.tbl td{height:40px;padding:0 12px;border-bottom:1px solid var(--hair);white-space:nowrap;vertical-align:middle;max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td.first{font-weight:600;position:sticky;left:0;background:var(--panel);z-index:1}
+.tbl th.first{position:sticky;left:0;z-index:2}
+.tbl tbody tr{cursor:pointer;transition:background var(--t)}
+.tbl tbody tr:hover td{background:var(--hover)}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl td.num{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;font-variant-numeric:tabular-nums}
+.tbl.compact td{height:34px}
+.tbl.compact th{height:30px}
+.sym{display:inline-flex;align-items:center;gap:10px}
+.sym .tile{font-size:12px;width:26px;height:26px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 8px 0 7px;border-radius:5px;font-size:12px;font-weight:500;line-height:20px;white-space:nowrap}
+.chip i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.chip.green{background:var(--c-green-bg);color:var(--c-green)}
+.chip.blue{background:var(--c-blue-bg);color:var(--c-blue)}
+.chip.orange{background:var(--c-orange-bg);color:var(--c-orange)}
+.chip.red{background:var(--c-red-bg);color:var(--c-red)}
+.chip.purple{background:var(--c-purple-bg);color:var(--c-purple)}
+.chip.gray{background:var(--c-gray-bg);color:var(--c-gray)}
+.chip.yellow{background:var(--c-yellow-bg);color:var(--c-yellow)}
+.empty{padding:28px 16px;color:var(--ink-2);text-align:center}
+.loading{padding:24px 16px;color:var(--ink-3);display:flex;gap:8px;align-items:center;justify-content:center}
+.spin{display:inline-block;width:12px;height:12px;border:1.5px solid var(--hair-2);border-top-color:var(--ink-2);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{padding:24px 16px;color:var(--c-red);text-align:center}
+
+/* ---------- symbol ---------- */
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);font-size:12.5px;margin:18px 0 0}
+.back:hover{color:var(--ink);text-decoration:none}
+.rec-h{padding:14px 0 0;display:flex;align-items:flex-start;gap:14px}
+.rec-h .name{min-width:0}
+.rec-h .name h1{font-size:22px;line-height:1.2;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rec-h .name h1 .tn{font-weight:500;color:var(--ink-2);font-size:15px}
+.rec-h .name .sub{color:var(--ink-2);font-size:12.5px;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+.rec-h .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);margin:18px 0 0;overflow:hidden}
+.stats>div{padding:12px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0}
+.stats .l{font-size:12px;color:var(--ink-2)}
+.stats .n{font-size:18px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:24px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats .s{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.sec-h{display:flex;align-items:baseline;gap:10px;margin:26px 0 10px}
+.sec-h h2{font-size:14px}
+.sec-h .muted{font-size:12px}
+.chart{position:relative;border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);padding:12px 8px 6px;overflow:hidden}
+.chart svg{display:block;width:100%;height:auto}
+.chart .tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--hair-2);border-radius:var(--r-ctl);padding:6px 8px;font-size:12px;box-shadow:var(--shadow);white-space:nowrap;transform:translate(-50%,-115%);z-index:2}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--ink-2);margin:8px 0 0;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:2px;background:var(--accent);vertical-align:middle;margin-right:6px}
+.legend i.ex{width:2px;height:10px;background:var(--ink-3)}
+.attrs{display:grid;grid-template-columns:200px 1fr;border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);padding:0 14px}
+.attrs>div{min-height:36px;display:flex;align-items:center;border-bottom:1px solid var(--hair);padding:6px 0;min-width:0}
+.attrs>div:nth-last-child(-n+2){border-bottom:0}
+.attrs .k{color:var(--ink-2);font-size:12.5px}
+.attrs .v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media (max-width:520px){.attrs{grid-template-columns:130px 1fr}}
+.foot{border-top:1px solid var(--hair);margin-top:40px;padding:16px;color:var(--ink-2);font-size:12.5px;line-height:1.5}
+.foot .in{max-width:1080px;margin:0 auto}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a href="/market" class="tile" id="mark" aria-label="Freedom Exchange">F</a>
+  <div class="name"><a href="/market">Freedom Exchange</a></div>
+  <div class="right"><span class="date" id="top-date"></span><span id="top-phase"></span></div>
+</div></header>
+
+<main class="wrap" id="main">
+  <div class="loading"><span class="spin"></span>Loading the market</div>
+</main>
+
+<footer class="foot"><div class="in">Prices are the last published call-auction price; a zero-volume session carries the reference forward. Tap-earned shares are locked 120 days.</div></footer>
+
+<script>
+// ---------- helpers ----------
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const NG = new Intl.NumberFormat('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+const N0 = new Intl.NumberFormat('en-NG');
+const naira = k => k==null ? '—' : (k<0?'−':'') + '₦' + NG.format(Math.abs(Number(k))/100);
+const nairaC = k => { if(k==null) return '—'; const v=Number(k)/100, a=Math.abs(v); const s=a>=1e12?(a/1e12).toFixed(1)+'tn':a>=1e9?(a/1e9).toFixed(1)+'bn':a>=1e6?(a/1e6).toFixed(1)+'m':a>=1e4?(a/1e3).toFixed(1)+'k':NG.format(a); return (v<0?'−':'')+'₦'+s; };
+const shares = u => { if(u==null) return '—'; const v=Number(u)/1e8; return v.toLocaleString('en-NG',{maximumFractionDigits:8}); };
+const sharesC = u => { if(u==null) return '—'; const v=Number(u)/1e8, a=Math.abs(v); const s=a>=1e9?(a/1e9).toFixed(2)+'bn':a>=1e6?(a/1e6).toFixed(2)+'m':a>=1e4?(a/1e3).toFixed(1)+'k':a>=1?a.toLocaleString('en-NG',{maximumFractionDigits:2}):a.toLocaleString('en-NG',{maximumFractionDigits:8}); return (v<0?'−':'')+s; };
+const int = v => v==null ? '—' : N0.format(Number(v));
+const fmtDate = s => s ? String(s).slice(0,10) : '—';
+const fmtTime = iso => iso ? new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'}) : '—';
+const title = s => String(s||'').replace(/_/g,' ');
+const TONES = {listed:'green',halted:'red',suspended:'orange',delisted:'gray',auction_only:'gray',continuous:'blue',under_review:'orange',demoted:'purple',published:'green',accepting:'blue',frozen:'orange',uncrossed:'blue',scheduled:'gray',cancelled:'gray',announced:'blue',record_taken:'orange',applied:'green',closed:'gray',pre_open:'yellow',auction:'blue',carry_forward:'gray',reference:'gray',manual:'orange',clob:'blue'};
+const chip = (v, tone) => v==null||v==='' ? '<span class="faint">—</span>' : `<span class="chip ${tone||TONES[String(v)]||'gray'}"><i></i>${esc(title(v))}</span>`;
+const change = bps => bps==null ? '<span class="faint">—</span>' : `<span class="${bps>0?'up':bps<0?'down':'muted'}">${bps>0?'+':bps<0?'−':''}${(Math.abs(bps)/100).toFixed(2)}%</span>`;
+const mono = (sym, cls='') => `<span class="tile ${cls}">${esc(String(sym||'').slice(0,2))}</span>`;
+const structure = s => chip(s);
+const haltChip = h => h ? chip('halted','red') : chip('trading','green');
+const priceNote = s => s==='auction' ? 'last auction' : s==='carry_forward' ? 'carried forward' : 'reference price';
+
+async function getJSON(path){
+  const r = await fetch(path, {headers:{Accept:'application/json'}});
+  if(!r.ok){ const e = new Error(r.status===404 ? 'No such symbol.' : 'The market could not be read ('+r.status+').'); e.status=r.status; throw e; }
+  return r.json();
+}
+
+// ---------- routing: /market → home, /market/SYM → symbol ----------
+function route(){
+  const m = location.pathname.match(/^\/market\/?([A-Za-z0-9]{3,12})?\/?$/);
+  const hash = location.hash.match(/^#\/?([A-Za-z0-9]{3,12})$/);
+  return (m && m[1]) ? m[1].toUpperCase() : hash ? hash[1].toUpperCase() : null;
+}
+function go(sym){
+  history.pushState(null, '', sym ? '/market/'+sym : '/market');
+  render();
+}
+window.addEventListener('popstate', render);
+
+function topbar(d){
+  $('#top-date').textContent = d.business_date || '';
+  $('#top-phase').innerHTML = d.phase ? chip(d.phase) : '';
+}
+
+async function render(){
+  const main = $('#main'); const sym = route();
+  window.scrollTo(0,0);
+  main.innerHTML = '<div class="loading"><span class="spin"></span>Loading the market</div>';
+  try {
+    if(sym){ const [d, m] = await Promise.all([getJSON('/v1/market/'+encodeURIComponent(sym)), getJSON('/v1/market')]); topbar(m); document.title = sym+' · Freedom Exchange'; renderSymbol(main, d, m); }
+    else { const d = await getJSON('/v1/market'); topbar(d); document.title = 'Freedom Exchange · Market'; renderHome(main, d); }
+  } catch(e) {
+    main.innerHTML = `<div class="hero"><h1>${esc(e.message)}</h1><p><a href="/market" data-nav="">Back to the market</a></p></div>`;
+    wireNav(main);
+  }
+}
+function wireNav(el){ $$('[data-nav]', el).forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.nav || null); }); }
+
+// ---------- home ----------
+const COLS = [
+  {k:'symbol', l:'Symbol', cls:'first', v:r=>`<span class="sym">${mono(r.symbol)}<span>${esc(r.symbol)}</span></span>`, s:r=>r.symbol},
+  {k:'legal_name', l:'Company', v:r=>`<span>${esc(r.legal_name)}</span>${r.trading_name&&r.trading_name!==r.legal_name?` <span class="muted">· ${esc(r.trading_name)}</span>`:''}`, s:r=>r.legal_name.toLowerCase()},
+  {k:'price_kobo', l:'Price', cls:'r num', v:r=>naira(r.price_kobo), s:r=>r.price_kobo, num:true},
+  {k:'change_bps', l:'Change', cls:'r num', v:r=>change(r.change_bps), s:r=>r.change_bps==null?-Infinity:r.change_bps, num:true},
+  {k:'market_cap_kobo', l:'Company value', cls:'r num', v:r=>nairaC(r.market_cap_kobo), s:r=>r.market_cap_kobo, num:true},
+  {k:'shares_in_issue_units', l:'Shares in issue', cls:'r num', v:r=>sharesC(r.shares_in_issue_units), s:r=>r.shares_in_issue_units, num:true},
+  {k:'holders', l:'Holders', cls:'r num', v:r=>int(r.holders), s:r=>r.holders, num:true},
+  {k:'structure', l:'Structure', v:r=>structure(r.structure), s:r=>r.structure},
+  {k:'halted', l:'Halted', v:r=>haltChip(r.halted), s:r=>r.halted?1:0},
+];
+const home = {sort:{k:'symbol',dir:1}, q:''};
+
+function renderHome(el, d){
+  const ix = d.index;
+  el.innerHTML = `
+    <section class="hero"><h1>Nigerian businesses you can own by tapping</h1>
+      <p>Every card tap at a listed business buys the cardholder a slice of it — priced once a day in a call auction, settled on the exchange's own register.</p></section>
+    ${ix ? `<div class="tl"><span class="l">${esc(ix.name)}</span><span class="n">${ix.value_bps!=null ? (ix.value_bps/10000).toFixed(2) : '—'}</span><span class="s">${ix.obs_date ? 'as of '+esc(ix.obs_date) : 'no value yet'} · base ${(ix.base_value/10000).toFixed(0)}</span></div>` : ''}
+    <div class="toolbar"><h2>Listed businesses</h2><span class="count" id="count"></span>
+      <label class="search"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" placeholder="Search symbol or company" spellcheck="false" autocomplete="off"></label></div>
+    <div class="panel" id="tbl"></div>`;
+  const q = $('#q'); q.value = home.q; q.oninput = () => { home.q = q.value; drawTable(d.instruments); };
+  drawTable(d.instruments);
+}
+
+function drawTable(rows){
+  const q = home.q.trim().toLowerCase();
+  let list = rows.filter(r => !q || r.symbol.toLowerCase().includes(q) || r.legal_name.toLowerCase().includes(q) || (r.trading_name||'').toLowerCase().includes(q));
+  const col = COLS.find(c => c.k===home.sort.k) || COLS[0];
+  list = list.slice().sort((a,b) => { const x=col.s(a), y=col.s(b); return (x<y?-1:x>y?1:0)*home.sort.dir || a.symbol.localeCompare(b.symbol); });
+  $('#count').textContent = list.length===rows.length ? `${rows.length} listed` : `${list.length} of ${rows.length}`;
+  const el = $('#tbl');
+  if(!rows.length){ el.innerHTML = '<div class="empty">Nothing is listed yet.</div>'; return; }
+  if(!list.length){ el.innerHTML = '<div class="empty">No symbol or company matches.</div>'; return; }
+  el.innerHTML = `<table class="tbl"><thead><tr>${COLS.map(c=>`<th class="${c.cls||''}" data-k="${c.k}"><span class="h">${esc(c.l)}<span class="dir">${home.sort.k===c.k?(home.sort.dir>0?'↑':'↓'):''}</span></span></th>`).join('')}</tr></thead>
+    <tbody>${list.map(r=>`<tr data-sym="${esc(r.symbol)}">${COLS.map(c=>`<td class="${c.cls||''}">${c.v(r)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  $$('th', el).forEach(th => th.onclick = () => { const k=th.dataset.k; if(home.sort.k===k) home.sort.dir=-home.sort.dir; else home.sort={k, dir:(COLS.find(c=>c.k===k).num?-1:1)}; drawTable(rows); });
+  $$('tbody tr', el).forEach(tr => tr.onclick = () => go(tr.dataset.sym));
+}
+
+// ---------- symbol ----------
+function renderSymbol(el, d, m){
+  const rc = d.company.rc_number ? ' · RC '+esc(d.company.rc_number) : '';
+  el.innerHTML = `
+    <a class="back" href="/market" data-nav=""><svg class="i" viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></svg>All listed businesses</a>
+    <div class="rec-h">${mono(d.symbol,'lg')}<div class="name"><h1>${esc(d.symbol)}${d.trading_name?`<span class="tn">${esc(d.trading_name)}</span>`:''}</h1>
+      <div class="sub">${esc(d.legal_name)}${rc}</div>
+      <div class="chips">${chip(d.status)}${structure(d.structure)}${haltChip(d.halted)}</div></div></div>
+    <div class="stats">
+      <div><div class="l">Price</div><div class="n">${naira(d.price_kobo)}</div><div class="s">${priceNote(d.price_source)}</div></div>
+      <div><div class="l">Change</div><div class="n">${change(d.change_bps)}</div><div class="s">vs previous session</div></div>
+      <div><div class="l">Company value</div><div class="n">${nairaC(d.market_cap_kobo)}</div><div class="s">${naira(d.market_cap_kobo)}</div></div>
+      <div><div class="l">Holders</div><div class="n">${int(d.holders)}</div><div class="s">on the register</div></div>
+      <div><div class="l">Shares in issue</div><div class="n">${sharesC(d.shares_in_issue_units)}</div><div class="s">${shares(d.shares_in_issue_units)}</div></div>
+    </div>
+    <div class="sec-h"><h2>Price</h2><span class="muted">last ${d.prices.length} session${d.prices.length===1?'':'s'}, adjusted for corporate actions</span></div>
+    <div class="chart" id="chart"></div>
+    <div class="legend"><span><i></i>Adjusted price</span>${d.corporate_actions.length?'<span><i class="ex"></i>Ex-date</span>':''}</div>
+    <div class="sec-h"><h2>Recent sessions</h2><span class="muted">one call auction a trading day</span></div>
+    <div class="panel">${sessionsTable(d.sessions)}</div>
+    <div class="sec-h"><h2>Cap table</h2><span class="muted">as the register sees it</span></div>
+    <div class="attrs">${attr('Company', esc(d.company.legal_name))}${attr('Trading as', d.company.trading_name?esc(d.company.trading_name):'')}${attr('RC number', d.company.rc_number?`<span class="mono">${esc(d.company.rc_number)}</span>`:'')}${attr('Merchant category', d.company.mcc?`<span class="mono">MCC ${esc(d.company.mcc)}</span>`:'')}${attr('Listed', fmtDate(d.listed_at))}
+      ${attr('Shares authorised', shares(d.cap_table.shares_authorised_units))}${attr('Shares in issue', shares(d.cap_table.shares_in_issue_units))}${attr('On the register', shares(d.cap_table.on_register_units))}${attr('Treasury pool', shares(d.cap_table.treasury_units))}${attr('Daily release cap', shares(d.cap_table.daily_release_units))}${attr('Reference price', naira(d.reference_price_kobo))}${attr('Volume today', shares(d.volume_units_today)+' shares')}</div>
+    <div class="sec-h"><h2>Corporate actions</h2><span class="muted">splits, bonuses and dividends</span></div>
+    <div class="panel">${d.corporate_actions.length ? `<table class="tbl compact"><thead><tr><th>Kind</th><th>State</th><th class="r">Terms</th><th>Ex-date</th></tr></thead><tbody>${d.corporate_actions.map(a=>`<tr style="cursor:default"><td>${chip(a.kind,'gray')}</td><td>${chip(a.state)}</td><td class="r num">${a.dps_kobo!=null?naira(a.dps_kobo)+' per share':a.ratio_num+' for '+a.ratio_den}</td><td class="num">${esc(a.ex_date)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No corporate actions.</div>'}</div>
+    <div class="sec-h"><h2>Disclosures</h2><span class="muted">published to everyone at once</span></div>
+    <div class="panel">${d.disclosures.length ? `<table class="tbl compact"><thead><tr><th>Kind</th><th>Headline</th><th>Published</th></tr></thead><tbody>${d.disclosures.map(x=>`<tr style="cursor:default"><td>${chip(x.kind,'gray')}</td><td style="white-space:normal">${esc(x.headline)}</td><td class="num">${fmtTime(x.published_at)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No published disclosures.</div>'}</div>`;
+  wireNav(el);
+  const pts = d.prices.map(p => ({x:p.date, y:p.adjusted_price_kobo/100, label:naira(p.adjusted_price_kobo)+' · '+title(p.source)+(p.volume_units?' · '+sharesC(p.volume_units)+' shares':'')}));
+  const marks = d.corporate_actions.map(a => ({x:a.ex_date, label:'ex '+title(a.kind)}));
+  const ch = $('#chart');
+  const draw = () => lineChart(ch, pts, {marks, fmt:v=>'₦'+NG.format(v)});
+  draw();
+  if(window.ResizeObserver){ let w = ch.clientWidth; const ro = new ResizeObserver(() => { if(ch.clientWidth!==w){ w=ch.clientWidth; draw(); } }); ro.observe(ch); }
+  else window.addEventListener('resize', draw);
+}
+
+const attr = (k, v) => `<div class="k">${k}</div><div class="v">${v || '<span class="faint">—</span>'}</div>`;
+
+function sessionsTable(rows){
+  if(!rows.length) return '<div class="empty">No sessions yet.</div>';
+  return `<table class="tbl compact"><thead><tr><th>Date</th><th>State</th><th class="r">Clearing price</th><th class="r">Matched</th><th>Volume</th></tr></thead><tbody>${rows.map(s=>`<tr style="cursor:default"><td class="num">${esc(s.date)}</td><td>${chip(s.state)}</td><td class="r num">${s.clearing_price_kobo!=null?naira(s.clearing_price_kobo):'<span class="faint">—</span>'}</td><td class="r num">${s.matched_units!=null?sharesC(s.matched_units):'<span class="faint">—</span>'}</td><td>${s.state!=='published'?'<span class="faint">—</span>':s.zero_volume?chip('zero volume · reference carried','gray'):chip('traded','green')}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ---------- line chart (plain SVG, sized to the element) ----------
+function lineChart(el, pts, opts={}){
+  const W = Math.max(300, (el.clientWidth||720) - 16), H = W < 480 ? 220 : 280, L = 60, R = 16, T = 18, B = 30; const marks = opts.marks||[];
+  if(!pts.length){ el.innerHTML='<div class="empty" style="padding:60px 0">No price observations yet.</div>'; return; }
+  const ys = pts.map(p=>p.y); let lo=Math.min(...ys), hi=Math.max(...ys); if(lo===hi){ lo=lo*0.95||0; hi=hi*1.05||1; } const pad=(hi-lo)*0.08; lo-=pad; hi+=pad;
+  const x = i => L + (pts.length===1 ? (W-L-R)/2 : (i/(pts.length-1))*(W-L-R)), y = v => T + (1-(v-lo)/(hi-lo))*(H-T-B);
+  const fmt = opts.fmt||(v=>v.toFixed(2)); const ticks=[0,.25,.5,.75,1].map(t=>lo+(hi-lo)*t);
+  const grid = ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--hair)" stroke-width="1"/><text x="${L-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="JetBrains Mono,monospace">${fmt(v)}</text>`).join('');
+  const xi = [0, Math.floor((pts.length-1)/2), pts.length-1].filter((v,i,a)=>a.indexOf(v)===i);
+  const xl = xi.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" font-size="11" fill="var(--ink-3)" font-family="JetBrains Mono,monospace">${esc(pts[i].x)}</text>`).join('');
+  const d = pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.y).toFixed(1)).join(' ');
+  const mk = marks.map(m=>{ const i=pts.findIndex(p=>p.x>=m.x); if(i<0) return ''; return `<line x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="2 3"/><text x="${(x(i)+4).toFixed(1)}" y="${T+10}" font-size="10" fill="var(--ink-3)">${esc(m.label)}</text>`; }).join('');
+  const last = pts[pts.length-1];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="ch" role="img" aria-label="Adjusted price, last ${pts.length} sessions">${grid}${xl}${mk}<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(pts.length-1).toFixed(1)}" cy="${y(last.y).toFixed(1)}" r="4.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/><circle class="ch-dot" r="4" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" style="display:none"/><line class="ch-x" y1="${T}" y2="${H-B}" stroke="var(--hair-2)" style="display:none"/><rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" class="ch-hit"/></svg><div class="tip" style="display:none"></div>`;
+  const svg=$('svg.ch',el), hit=$('.ch-hit',el), tip=$('.tip',el), dot=$('.ch-dot',el), vx=$('.ch-x',el);
+  const show = clientX => { const r=svg.getBoundingClientRect(); const px=(clientX-r.left)/r.width*W; const i=Math.max(0,Math.min(pts.length-1,Math.round((px-L)/(W-L-R)*(pts.length-1)))); const p=pts[i];
+    dot.setAttribute('cx',x(i)); dot.setAttribute('cy',y(p.y)); dot.style.display=''; vx.setAttribute('x1',x(i)); vx.setAttribute('x2',x(i)); vx.style.display='';
+    tip.style.display=''; tip.style.left=(x(i)/W*r.width + svg.offsetLeft)+'px'; tip.style.top=(y(p.y)/H*r.height + svg.offsetTop)+'px'; tip.innerHTML=`<b>${esc(p.x)}</b><br>${esc(p.label||fmt(p.y))}`; };
+  const hide = () => { tip.style.display='none'; dot.style.display='none'; vx.style.display='none'; };
+  hit.onmousemove = e => show(e.clientX); hit.onmouseleave = hide;
+  hit.ontouchstart = hit.ontouchmove = e => { show(e.touches[0].clientX); }; hit.ontouchend = hide;
+}
+
+render();
+</script>
+</body>
+</html>

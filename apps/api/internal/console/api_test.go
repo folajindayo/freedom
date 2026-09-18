@@ -464,3 +464,35 @@ func TestConsoleKeepsTheBookDark(t *testing.T) {
 	}
 	_ = pgx.ErrNoRows
 }
+
+// The declared share count is what the company is valued on; correcting it
+// is an operator action that leaves a cap table event with a name on it.
+func TestConsoleSetsSharesInIssue(t *testing.T) {
+	p := pool(t)
+	c := newClient(t, p)
+	sym := seed(t, c)
+	const tok = "console-secret"
+
+	if status, _ := c.do(t, "POST", "/api/instruments/"+sym+"/shares-in-issue",
+		map[string]any{"units": 12_000_000_000_000_000, "reason": ""}, tok, "ngozi"); status != http.StatusBadRequest {
+		t.Fatalf("no reason: status %d, want 400", status)
+	}
+	status, body := c.do(t, "POST", "/api/instruments/"+sym+"/shares-in-issue",
+		map[string]any{"units": 12_000_000_000_000_000, "reason": "declared at admission"}, tok, "ngozi")
+	if status != http.StatusOK {
+		t.Fatalf("status %d: %v", status, body)
+	}
+	// 120,000,000 shares at the ₦40 reference: ₦4.8bn, exactly.
+	if got := body["market_cap_kobo"]; got != float64(480_000_000_000) {
+		t.Errorf("market_cap_kobo = %v, want 480000000000", got)
+	}
+	var note string
+	if err := p.QueryRow(context.Background(), `
+		SELECT note FROM cap_table_events WHERE instrument_id = $1 ORDER BY id DESC LIMIT 1`,
+		"EQ:"+sym).Scan(&note); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(note, "ngozi") || !strings.Contains(note, "declared at admission") {
+		t.Errorf("cap table event note = %q, want the operator and the reason", note)
+	}
+}
