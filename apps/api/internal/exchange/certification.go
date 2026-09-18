@@ -107,9 +107,20 @@ func (r CertificationRun) Report() string {
 //
 // Candidates must not certify against a live symbol: their deliberate failures
 // would land in real surveillance, and their successful orders would land in a
-// real price.
-func SandboxInstrument(ctx context.Context, tx pgx.Tx, companyID any, symbol string) (string, error) {
+// real price. For the same reason it sits on its own sandbox company rather
+// than a real issuer's: a company has one live instrument, and a sandbox line
+// under a real company would show up in that company's records.
+func SandboxInstrument(ctx context.Context, tx pgx.Tx, symbol string) (string, error) {
 	assetID := "EQ:" + symbol
+	var companyID string
+	if err := tx.QueryRow(ctx, `
+		WITH existing AS (SELECT company_id FROM instruments WHERE id = $1),
+		     made AS (INSERT INTO companies (legal_name)
+		              SELECT $2 WHERE NOT EXISTS (SELECT 1 FROM existing) RETURNING id)
+		SELECT company_id FROM existing UNION ALL SELECT id FROM made`,
+		assetID, "Certification sandbox ("+symbol+")").Scan(&companyID); err != nil {
+		return "", fmt.Errorf("exchange: sandbox company: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO assets (id, class, scale, label) VALUES ($1,'equity',8,$2)
 		ON CONFLICT (id) DO NOTHING`, assetID, symbol); err != nil {

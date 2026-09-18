@@ -264,6 +264,33 @@ func settleForCardholder(ctx context.Context, tx pgx.Tx, d Dispute, businessDate
 // cardholder did not choose to receive the shares and must not end up owing
 // more than the network spent because the price rose.
 func Unwind(ctx context.Context, tx pgx.Tx, d Dispute, businessDate string) error {
+	return unwind(ctx, tx, d, unwindCause{disputeID: &d.ID, note: "chargeback " + d.ID.String()}, businessDate)
+}
+
+// UnwindReversal claws back the equity bought against a sale the acquirer
+// reversed. Economically it is the chargeback unwind — the sale did not
+// happen — with the reversal presentment as the recorded cause instead of a
+// dispute. Rail reversals arrive well inside the chargeback lock, so the lot is
+// always still there and the unwind is always in shares.
+func UnwindReversal(ctx context.Context, tx pgx.Tx, originalPresentment, reversalPresentment,
+	cardholder uuid.UUID, businessDate string) error {
+
+	d := Dispute{PresentmentID: originalPresentment, Cardholder: cardholder}
+	return unwind(ctx, tx, d, unwindCause{
+		reversalID: &reversalPresentment,
+		note:       "reversal " + reversalPresentment.String(),
+	}, businessDate)
+}
+
+// unwindCause is what buyback_unwinds records as the reason: exactly one of a
+// dispute or a reversal presentment.
+type unwindCause struct {
+	disputeID  *uuid.UUID
+	reversalID *uuid.UUID
+	note       string
+}
+
+func unwind(ctx context.Context, tx pgx.Tx, d Dispute, cause unwindCause, businessDate string) error {
 	var intentID uuid.UUID
 	var instrumentID, symbol string
 	var companyID uuid.UUID
@@ -410,10 +437,12 @@ func Unwind(ctx context.Context, tx pgx.Tx, d Dispute, businessDate string) erro
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO buyback_unwinds
-		  (intent_id, dispute_id, units_clawed, units_short, cash_recovered_kobo, loss_kobo, method, ledger_tx_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		  (intent_id, dispute_id, reversal_presentment_id, units_clawed, units_short,
+		   cash_recovered_kobo, loss_kobo, method, ledger_tx_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		ON CONFLICT (intent_id) DO NOTHING`,
-		intentID, d.ID, int64(clawable), int64(short), int64(recovered), int64(loss), method, txID); err != nil {
+		intentID, cause.disputeID, cause.reversalID, int64(clawable), int64(short),
+		int64(recovered), int64(loss), method, txID); err != nil {
 		return fmt.Errorf("dispute: record unwind: %w", err)
 	}
 	if _, err := tx.Exec(ctx,
@@ -425,7 +454,7 @@ func Unwind(ctx context.Context, tx pgx.Tx, d Dispute, businessDate string) erro
 	_, err = tx.Exec(ctx, `
 		INSERT INTO cap_table_events (instrument_id, kind, units_delta, ledger_tx_id, note)
 		VALUES ($1,'buyback_unwind',$2,$3,$4)`,
-		instrumentID, -int64(clawable), txID, "chargeback "+d.ID.String())
+		instrumentID, -int64(clawable), txID, cause.note)
 	return err
 }
 

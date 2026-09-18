@@ -51,10 +51,16 @@ vet: ## go vet and gofmt check
 	@test -z "$$(cd $(API) && gofmt -l .)" || { \
 	  echo "unformatted files:"; cd $(API) && gofmt -l .; exit 1; }
 
+.PHONY: run
+run: db ## Run exchanged locally: rail (RAIL_TOKEN=dev-rail-token) and console (CONSOLE_TOKEN=dev-console-token) mounted
+	cd $(API) && RAIL_TOKEN=$${RAIL_TOKEN:-dev-rail-token} CONSOLE_TOKEN=$${CONSOLE_TOKEN:-dev-console-token} \
+	  MARKET_CLOSE_AT=$${MARKET_CLOSE_AT:-off} PORT=$${PORT:-8081} go run ./cmd/exchanged
+
 .PHONY: reset
 reset: ## Drop and recreate the schema
 	psql -h $(DB_HOST) -p $(DB_PORT) -d freedom -q -c \
 	  "DROP SCHEMA public CASCADE; CREATE SCHEMA public; \
+	   CREATE EXTENSION IF NOT EXISTS btree_gist; \
 	   GRANT ALL ON SCHEMA public TO freedom_scheme; \
 	   GRANT USAGE ON SCHEMA public TO freedom_participant;"
 	@echo "schema dropped; the next test run will migrate it"

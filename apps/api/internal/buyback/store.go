@@ -295,8 +295,13 @@ func openBatch(ctx context.Context, tx pgx.Tx, instrumentID, sessionDate string,
 		  (instrument_id, session_date, funding_kobo, units_bought, price_kobo, source, state)
 		VALUES ($1,$2::date,$3,$4,$5,'treasury','executed')
 		ON CONFLICT (instrument_id, session_date) DO UPDATE
-		  SET funding_kobo = EXCLUDED.funding_kobo,
-		      units_bought = EXCLUDED.units_bought,
+		  -- A session's buyback can run more than once: the rail runs it as
+		  -- taps arrive once the day has a price, and the close runs it again
+		  -- for anything still pending. The batch is the day's total, so each
+		  -- run adds to it rather than replacing it. The price is the same
+		  -- within a day by construction (one published session).
+		  SET funding_kobo = buyback_batches.funding_kobo + EXCLUDED.funding_kobo,
+		      units_bought = buyback_batches.units_bought + EXCLUDED.units_bought,
 		      price_kobo   = EXCLUDED.price_kobo
 		RETURNING id`,
 		instrumentID, sessionDate, int64(funding), int64(units), int64(price)).Scan(&id)
@@ -365,10 +370,14 @@ func finishIntent(ctx context.Context, tx pgx.Tx, a allocation, txID uuid.UUID,
 
 	// A lot, not a running total: cost basis cannot be reconstructed later, and
 	// transferable_from is what makes a chargeback unwind possible at all.
+	// cost_open_kobo starts equal to the cost: it is what a later disposal
+	// decrements, and a lot opened with zero open basis reports its entire
+	// proceeds as gain the first time it is sold.
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO holding_lots
-		  (account_id, instrument_id, units, units_open, cost_kobo, transferable_from, ledger_tx_id)
-		VALUES ($1,$2,$3,$3,$4,$5::date,$6)`,
+		  (account_id, instrument_id, units, units_open, cost_kobo, cost_open_kobo,
+		   transferable_from, ledger_tx_id)
+		VALUES ($1,$2,$3,$3,$4,$4,$5::date,$6)`,
 		wallet, a.InstrumentID, int64(a.Units), int64(cost), a.LockedUntil, txID); err != nil {
 		return fmt.Errorf("buyback: open holding lot: %w", err)
 	}

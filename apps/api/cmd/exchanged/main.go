@@ -1,4 +1,6 @@
-// Command exchanged serves Freedom Exchange's order entry and market data API.
+// Command exchanged serves Freedom Exchange's order entry and market data API,
+// the rail door Tapp delivers taps through (docs/INTEGRATION.md), and the
+// operations console at /console.
 package main
 
 import (
@@ -12,11 +14,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"freedom/api/internal/console"
 	"freedom/api/internal/exchange/httpapi"
 	"freedom/api/internal/migrate"
+	"freedom/api/internal/rail"
+	railapi "freedom/api/internal/rail/httpapi"
 )
 
 func main() {
@@ -34,6 +41,10 @@ func run() error {
 	if url == "" {
 		return errors.New("DATABASE_URL is not set")
 	}
+	url, err := databaseURL(ctx, url, os.Getenv("DATABASE_NAME"))
+	if err != nil {
+		return err
+	}
 	pool, err := pgxpool.New(ctx, url)
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
@@ -47,10 +58,43 @@ func run() error {
 	}
 
 	api := httpapi.New(pool, memberFromToken(pool))
+
+	// The rail. RAIL_TOKEN is required: an unauthenticated rail would let
+	// anyone on the network mint equity, so there is no default and no
+	// fallback — the server does not start without it.
+	svc := rail.New(pool)
+	railAPI, err := railapi.New(svc, os.Getenv("RAIL_TOKEN"))
+	if err != nil {
+		return err
+	}
+	if err := inTx(ctx, pool, func(tx pgx.Tx) error { return rail.Ensure(ctx, tx) }); err != nil {
+		return fmt.Errorf("rail: %w", err)
+	}
+	// The daily close, in-process. MARKET_CLOSE_AT=off for tests and for any
+	// second replica: two schedulers would race the same close, and although
+	// the close is idempotent, one of them would log a failure every day.
+	go func() {
+		if err := svc.Scheduler(ctx, envOr("MARKET_CLOSE_AT", "12:00")); err != nil {
+			slog.Error("market close scheduler stopped", "err", err)
+		}
+	}()
+
+	// The console. CONSOLE_TOKEN is required for the same reason RAIL_TOKEN
+	// is: the page can halt a symbol and run the close.
+	ops, err := console.New(pool, svc, os.Getenv("CONSOLE_TOKEN"))
+	if err != nil {
+		return err
+	}
+
+	root := chi.NewRouter()
+	root.Mount("/v1/rail", railAPI.Routes())
+	root.Mount("/console", ops.Routes())
+	root.Mount("/", api.Routes())
+
 	addr := ":" + envOr("PORT", "8081")
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           api.Routes(),
+		Handler:           root,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -110,6 +154,18 @@ func bearer(r *http.Request) string {
 		return h[len(prefix):]
 	}
 	return ""
+}
+
+func inTx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func envOr(key, fallback string) string {

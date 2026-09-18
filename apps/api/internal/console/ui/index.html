@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freedom Exchange · Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#ffffff;--sidebar:#f9f9f8;--panel:#ffffff;--hair:#ebebec;--hair-2:#dedee0;--hover:#fafafa;
+  --ink:#1c1c1e;--ink-2:#6b6f76;--ink-3:#9a9ea5;--accent:#2f5bea;--accent-soft:#e8effc;--selected:#eef2fd;
+  --btn:#1a1a1c;--btn-ink:#ffffff;
+  --c-green-bg:#e6f5ec;--c-green:#0d6b3f;--c-blue-bg:#e8effc;--c-blue:#2857c4;--c-orange-bg:#fdefdc;--c-orange:#9a5b12;
+  --c-red-bg:#fde9e9;--c-red:#b42318;--c-purple-bg:#efe9fc;--c-purple:#6b3fc4;--c-gray-bg:#f0f0f1;--c-gray:#4b4f55;
+  --c-yellow-bg:#fbf4d7;--c-yellow:#8a6b0a;
+  --shadow:0 8px 32px rgba(20,20,24,.10),0 0 0 1px var(--hair-2);
+  --r-ctl:6px;--r-panel:8px;--r-dlg:10px;--t:150ms;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0f0f10;--sidebar:#151516;--panel:#1a1a1b;--hair:#29292b;--hair-2:#333336;--hover:#161617;
+  --ink:#ececec;--ink-2:#a0a3a8;--ink-3:#6c6f75;--accent:#6d8cf5;--accent-soft:#1c2540;--selected:#1a2138;
+  --btn:#ececec;--btn-ink:#111113;
+  --c-green-bg:#12301f;--c-green:#7ed6a5;--c-blue-bg:#182543;--c-blue:#92b0ff;--c-orange-bg:#3a2a12;--c-orange:#f0b76a;
+  --c-red-bg:#3d1a1a;--c-red:#f39a94;--c-purple-bg:#2a1f45;--c-purple:#c3a8ff;--c-gray-bg:#2a2a2c;--c-gray:#c4c6ca;
+  --c-yellow-bg:#352e12;--c-yellow:#e6c65a;
+  --shadow:0 8px 32px rgba(0,0,0,.55),0 0 0 1px var(--hair-2);
+}}
+:root[data-theme="dark"]{
+  --ground:#0f0f10;--sidebar:#151516;--panel:#1a1a1b;--hair:#29292b;--hair-2:#333336;--hover:#161617;
+  --ink:#ececec;--ink-2:#a0a3a8;--ink-3:#6c6f75;--accent:#6d8cf5;--accent-soft:#1c2540;--selected:#1a2138;
+  --btn:#ececec;--btn-ink:#111113;
+  --c-green-bg:#12301f;--c-green:#7ed6a5;--c-blue-bg:#182543;--c-blue:#92b0ff;--c-orange-bg:#3a2a12;--c-orange:#f0b76a;
+  --c-red-bg:#3d1a1a;--c-red:#f39a94;--c-purple-bg:#2a1f45;--c-purple:#c3a8ff;--c-gray-bg:#2a2a2c;--c-gray:#c4c6ca;
+  --c-yellow-bg:#352e12;--c-yellow:#e6c65a;
+  --shadow:0 8px 32px rgba(0,0,0,.55),0 0 0 1px var(--hair-2);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--ground);color:var(--ink);font:13px/1.45 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+button,input,select,textarea{font:inherit;color:inherit}
+svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.mono,.num{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.num,.tnum{font-variant-numeric:tabular-nums}
+.r{text-align:right}
+.muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:500}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px}h3{font-size:14px}
+[hidden]{display:none!important}
+kbd{font:inherit;font-size:11px;color:var(--ink-3);border:1px solid var(--hair-2);border-radius:4px;padding:0 4px;line-height:16px}
+
+/* ---------- sign-in ---------- */
+#signin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--sidebar)}
+.card{width:360px;background:var(--panel);border:1px solid var(--hair-2);border-radius:var(--r-dlg);padding:24px}
+.card .tile{margin-bottom:14px}
+.card p{margin:4px 0 18px;color:var(--ink-2)}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12px;color:var(--ink-2)}
+.in{height:32px;padding:0 10px;border:1px solid var(--hair-2);border-radius:var(--r-ctl);background:var(--ground);outline:none;transition:border-color var(--t),box-shadow var(--t)}
+.in:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea.in{height:auto;min-height:64px;padding:8px 10px;resize:vertical}
+select.in{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);background-position:calc(100% - 14px) 13px,calc(100% - 10px) 13px;background-size:4px 4px;background-repeat:no-repeat;padding-right:26px}
+.btn{height:30px;padding:0 12px;border:1px solid var(--hair-2);border-radius:var(--r-ctl);background:var(--panel);display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;white-space:nowrap;transition:background var(--t),border-color var(--t)}
+.btn:hover{background:var(--hover)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.btn.primary:hover{opacity:.92}
+.btn.danger{color:var(--c-red);border-color:var(--hair-2)}
+.btn.sm{height:26px;padding:0 9px;font-size:12px}
+.btn:focus-visible,.in:focus-visible,.nav a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.err{color:var(--c-red);font-size:12px;min-height:16px;margin-top:6px}
+
+/* ---------- shell ---------- */
+#app{display:grid;grid-template-columns:240px 1fr;height:100vh}
+.sb{background:var(--sidebar);border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+.ws{display:flex;align-items:center;gap:10px;padding:14px 14px 10px}
+.tile{width:28px;height:28px;border-radius:6px;background:var(--btn);color:var(--btn-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none}
+.tile.lg{width:40px;height:40px;font-size:17px;border-radius:8px}
+.ws-name{font-weight:600;font-size:13px;line-height:16px}
+.ws-date{font-size:12px;color:var(--ink-2);line-height:16px}
+.search{margin:2px 10px 8px;height:30px;display:flex;align-items:center;gap:8px;padding:0 8px 0 9px;border:1px solid var(--hair-2);border-radius:var(--r-ctl);background:var(--panel);color:var(--ink-3)}
+.search input{flex:1;border:0;background:transparent;outline:none;min-width:0;color:var(--ink)}
+.search input::placeholder{color:var(--ink-3)}
+.nav{flex:1;overflow:auto;padding:2px 10px 10px}
+.nav .grp{margin-top:12px}
+.nav .grp .eyebrow{padding:0 8px 4px}
+.nav a{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:var(--r-ctl);color:var(--ink-2);transition:background var(--t),color var(--t)}
+.nav a:hover{background:rgba(0,0,0,.035);text-decoration:none;color:var(--ink)}
+:root[data-theme="dark"] .nav a:hover{background:rgba(255,255,255,.05)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .nav a:hover{background:rgba(255,255,255,.05)}}
+.nav a.on{color:var(--accent);font-weight:500;background:rgba(0,0,0,.045)}
+:root[data-theme="dark"] .nav a.on{background:rgba(255,255,255,.06)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .nav a.on{background:rgba(255,255,255,.06)}}
+.nav a .cnt{margin-left:auto;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.nav a.on .cnt{color:var(--accent)}
+.sb-foot{border-top:1px solid var(--hair);padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.sb-foot .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-foot .who b{color:var(--ink);font-weight:500}
+.seg{display:inline-flex;border:1px solid var(--hair-2);border-radius:var(--r-ctl);overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;width:26px;height:24px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-3);cursor:pointer}
+.seg button.on{background:var(--hover);color:var(--ink)}
+.seg button svg.i{width:14px;height:14px}
+.linkbtn{border:0;background:none;padding:0;color:var(--ink-3);cursor:pointer}
+.linkbtn:hover{color:var(--ink)}
+
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.hd{height:44px;border-bottom:1px solid var(--hair);display:flex;align-items:center;padding:0 20px;gap:12px;flex:none}
+.crumb{display:flex;align-items:center;gap:6px;font-weight:500;min-width:0}
+.crumb .sep{color:var(--ink-3)}
+.crumb .obj{color:var(--ink-2)}
+.hd-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.toolbar{height:40px;border-bottom:1px solid var(--hair);display:flex;align-items:center;padding:0 20px;gap:8px;flex:none;position:relative}
+.toolbar .count{margin-left:auto;color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
+.chipbtn{height:26px;padding:0 9px;border:1px dashed var(--hair-2);border-radius:var(--r-ctl);background:transparent;display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);cursor:pointer;font-size:12px}
+.chipbtn:hover{background:var(--hover);color:var(--ink)}
+.chipbtn.set{border-style:solid;color:var(--ink);background:var(--panel)}
+.chipbtn .x{color:var(--ink-3);margin-left:2px}
+.chipbtn .x:hover{color:var(--ink)}
+.pop{position:absolute;top:36px;left:20px;z-index:20;background:var(--panel);border:1px solid var(--hair-2);border-radius:var(--r-panel);box-shadow:var(--shadow);min-width:200px;padding:4px}
+.pop .it{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:var(--r-ctl);cursor:pointer;font-size:12.5px}
+.pop .it:hover{background:var(--hover)}
+.pop .it .k{margin-left:auto;color:var(--ink-3);font-size:11px}
+.pop .hdr{padding:6px 8px 2px;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+.content{flex:1;overflow:auto;min-height:0}
+.pad{padding:20px}
+.empty{padding:28px 20px;color:var(--ink-2)}
+.note{padding:9px 20px;border-bottom:1px solid var(--hair);color:var(--ink-2);font-size:12.5px;background:var(--sidebar)}
+
+/* ---------- table ---------- */
+.tbl{width:100%;border-collapse:separate;border-spacing:0}
+.tbl th{position:sticky;top:0;z-index:2;background:var(--ground);height:32px;font-size:12px;font-weight:500;color:var(--ink-2);text-align:left;padding:0 12px;border-bottom:1px solid var(--hair);white-space:nowrap;user-select:none;cursor:pointer}
+.tbl th .h{display:inline-flex;align-items:center;gap:6px}
+.tbl th svg.i{width:13px;height:13px;color:var(--ink-3)}
+.tbl th.r .h{flex-direction:row-reverse}
+.tbl th .dir{color:var(--accent);font-size:10px}
+.tbl td{height:36px;padding:0 12px;border-bottom:1px solid var(--hair);white-space:nowrap;vertical-align:middle;max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.tbl td.first{font-weight:500;position:sticky;left:0;background:var(--ground);z-index:1}
+.tbl th.first{left:0;z-index:3}
+.tbl .ck{width:36px;padding:0 0 0 20px}
+.tbl .ck input{width:14px;height:14px;margin:0;vertical-align:middle;accent-color:var(--accent)}
+.tbl tbody tr{cursor:pointer;transition:background var(--t)}
+.tbl tbody tr:hover td{background:var(--hover)}
+.tbl tbody tr.sel td{background:var(--selected)}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl td.num{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px}
+.tbl.compact td{height:32px}
+.tbl.compact th{height:30px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 8px 0 7px;border-radius:5px;font-size:12px;font-weight:500;line-height:20px;white-space:nowrap}
+.chip i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.chip.green{background:var(--c-green-bg);color:var(--c-green)}
+.chip.blue{background:var(--c-blue-bg);color:var(--c-blue)}
+.chip.orange{background:var(--c-orange-bg);color:var(--c-orange)}
+.chip.red{background:var(--c-red-bg);color:var(--c-red)}
+.chip.purple{background:var(--c-purple-bg);color:var(--c-purple)}
+.chip.gray{background:var(--c-gray-bg);color:var(--c-gray)}
+.chip.yellow{background:var(--c-yellow-bg);color:var(--c-yellow)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor}
+.more{display:flex;justify-content:center;padding:12px}
+
+/* ---------- peek ---------- */
+.peek{position:fixed;top:0;right:0;bottom:0;width:520px;max-width:100vw;background:var(--panel);border-left:1px solid var(--hair-2);box-shadow:var(--shadow);transform:translateX(100%);transition:transform var(--t) ease;z-index:30;display:flex;flex-direction:column}
+.peek.on{transform:none}
+.peek .ph{padding:16px 20px 12px;border-bottom:1px solid var(--hair);display:flex;align-items:flex-start;gap:12px}
+.peek .ph h2{font-size:15px}
+.peek .ph .sub{color:var(--ink-2);font-size:12px;margin-top:2px}
+.peek .ph .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.peek .close{margin-left:auto}
+.peek .pb{flex:1;overflow:auto;padding:8px 20px 24px}
+.peek .sec{margin-top:18px}
+.peek .sec h3{font-size:12px;color:var(--ink-3);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attrs{display:grid;grid-template-columns:150px 1fr;row-gap:0}
+.attrs>div{min-height:30px;display:flex;align-items:center;border-bottom:1px solid var(--hair);padding:5px 0;min-width:0}
+.attrs .k{color:var(--ink-2);gap:7px;font-size:12.5px}
+.attrs .k svg.i{width:14px;height:14px;color:var(--ink-3)}
+.attrs .v{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:20px;padding:5px 0}
+.attrs .v.wrap{white-space:normal;line-height:1.4}
+.peek .acts{display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;margin-top:6px}
+.confirm{border:1px solid var(--hair-2);border-radius:var(--r-panel);padding:12px;margin-top:10px;background:var(--ground)}
+.confirm p{margin:0 0 10px}
+.confirm .row{display:flex;gap:8px;margin-top:10px}
+pre.json{margin:0;padding:10px 12px;border:1px solid var(--hair);border-radius:var(--r-ctl);background:var(--ground);font:12px/1.5 "JetBrains Mono",monospace;white-space:pre-wrap;word-break:break-all;color:var(--ink-2)}
+.body{white-space:pre-wrap;line-height:1.5;color:var(--ink)}
+
+/* ---------- overview ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:10px}
+.tl{border:1px solid var(--hair-2);border-radius:var(--r-panel);padding:12px 14px;background:var(--panel);min-height:82px;cursor:pointer;transition:border-color var(--t)}
+.tl:hover{border-color:var(--ink-3)}
+.tl .n{font-size:20px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:26px}
+.tl .l{font-size:12.5px;color:var(--ink);margin-top:2px}
+.tl .s{font-size:12px;color:var(--ink-2);margin-top:1px;line-height:1.35}
+.tl.warn .n{color:var(--c-red)}
+.sec-h{display:flex;align-items:baseline;gap:10px;margin:26px 0 10px}
+.sec-h h2{font-size:14px}
+.sec-h .muted{font-size:12px}
+.sec-h a{margin-left:auto;font-size:12px}
+.timeline{border:1px solid var(--hair-2);border-radius:var(--r-panel);padding:16px 18px 14px;background:var(--panel)}
+.tl-track{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.tl-step{position:relative;padding-top:12px}
+.tl-step .bar{height:3px;border-radius:2px;background:var(--hair-2)}
+.tl-step.done .bar{background:var(--ink-3)}
+.tl-step.now .bar{background:var(--accent)}
+.tl-step .t{margin-top:8px;font-size:12px;font-weight:500}
+.tl-step .d{font-size:11.5px;color:var(--ink-2)}
+.tl-step.now .t{color:var(--accent)}
+.tl-step .pin{position:absolute;top:0;left:0;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:600}
+.panel{border:1px solid var(--hair-2);border-radius:var(--r-panel);background:var(--panel);overflow:auto}
+.panel .tbl th{background:var(--panel)}
+.panel .tbl td.first{background:var(--panel)}
+.panel .tbl tr:last-child td{border-bottom:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two>div{min-width:0}
+@media (max-width:1100px){.two{grid-template-columns:1fr}}
+
+/* ---------- record ---------- */
+.rec-h{padding:18px 20px 0;display:flex;align-items:center;gap:14px}
+.rec-h .name{min-width:0}
+.rec-h .name h1{font-size:18px;display:flex;align-items:center;gap:10px}
+.rec-h .name .sub{color:var(--ink-2);font-size:12.5px;margin-top:2px}
+.rec-h .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.record{display:flex;flex-direction:column;height:100%}
+.rec{display:grid;grid-template-columns:320px 1fr;min-height:0;flex:1}
+.rec-attrs{border-right:1px solid var(--hair);padding:12px 20px 24px;overflow:auto}
+.rec-attrs .sec{margin-top:16px}
+.rec-attrs .sec h3{font-size:11px;color:var(--ink-3);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.rec-attrs .attrs{grid-template-columns:132px 1fr}
+.rec-main{min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;gap:2px;padding:8px 20px 0;border-bottom:1px solid var(--hair);flex:none;overflow-x:auto}
+.tabs button{border:0;background:none;height:32px;padding:0 10px;color:var(--ink-2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-weight:500}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.tabs button .cnt{color:var(--ink-3);font-size:11px;margin-left:5px}
+.tab-body{flex:1;overflow:auto;min-height:0}
+.check{display:grid;grid-template-columns:20px 1fr 150px 210px;gap:0 12px;align-items:center}
+.check>div{border-bottom:1px solid var(--hair);min-height:36px;display:flex;align-items:center}
+.check .hd-row{font-size:12px;color:var(--ink-2);min-height:30px}
+.check .ok{color:var(--c-green)}.check .no{color:var(--c-red)}
+.chart{position:relative}
+.chart svg{display:block;max-width:100%;height:280px}
+.chart .tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--hair-2);border-radius:var(--r-ctl);padding:6px 8px;font-size:12px;box-shadow:var(--shadow);white-space:nowrap;transform:translate(-50%,-110%)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--ink-2);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:2px;background:var(--accent);vertical-align:middle;margin-right:6px}
+.legend i.ex{width:2px;height:10px;background:var(--ink-3)}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,10px);background:var(--btn);color:var(--btn-ink);padding:8px 14px;border-radius:var(--r-ctl);font-size:12.5px;opacity:0;pointer-events:none;transition:opacity var(--t),transform var(--t);z-index:50}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.spin{display:inline-block;width:12px;height:12px;border:1.5px solid var(--hair-2);border-top-color:var(--ink-2);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading{padding:20px;color:var(--ink-3);display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+<div id="signin">
+  <form class="card" id="signin-form" autocomplete="off">
+    <div class="tile lg">F</div>
+    <h2>Freedom Exchange</h2>
+    <p>Operations console. Actions are recorded against your name.</p>
+    <div class="field"><label for="si-name">Your name</label><input class="in" id="si-name" placeholder="e.g. Ngozi A." required></div>
+    <div class="field"><label for="si-token">Console token</label><input class="in" id="si-token" type="password" placeholder="CONSOLE_TOKEN" required></div>
+    <button class="btn primary" type="submit" style="width:100%;justify-content:center">Sign in</button>
+    <div class="err" id="si-err"></div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <aside class="sb">
+    <div class="ws"><div class="tile">F</div><div><div class="ws-name">Freedom Exchange</div><div class="ws-date" id="sb-date">—</div></div></div>
+    <label class="search"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" placeholder="Search" spellcheck="false"><kbd>⌘K</kbd></label>
+    <nav class="nav" id="nav"></nav>
+    <div class="sb-foot">
+      <span class="who" id="who"></span>
+      <span class="seg" id="theme"></span>
+      <button class="linkbtn" id="signout" title="Sign out"><svg class="i" viewBox="0 0 16 16"><path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6M10 11l3-3-3-3M13 8H6"/></svg></button>
+    </div>
+  </aside>
+  <main>
+    <header class="hd"><div class="crumb" id="crumb"></div><div class="hd-actions" id="hd-actions"></div></header>
+    <div class="toolbar" id="toolbar"></div>
+    <div class="content" id="content"></div>
+  </main>
+  <aside class="peek" id="peek" aria-hidden="true"></aside>
+</div>
+<div id="toast"></div>
+
+<script>
+// ---------- helpers ----------
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const NG = new Intl.NumberFormat('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+const N0 = new Intl.NumberFormat('en-NG');
+const naira = k => k==null ? '—' : (k<0?'−':'') + '₦' + NG.format(Math.abs(Number(k))/100);
+const nairaC = k => { if(k==null) return '—'; const v=Number(k)/100, a=Math.abs(v); const s=a>=1e9?(a/1e9).toFixed(2)+'bn':a>=1e6?(a/1e6).toFixed(2)+'m':a>=1e4?(a/1e3).toFixed(1)+'k':NG.format(a); return (v<0?'−':'')+'₦'+s; };
+const shares = u => { if(u==null) return '—'; const v=Number(u)/1e8; return v.toLocaleString('en-NG',{maximumFractionDigits:8}); };
+const sharesC = u => { if(u==null) return '—'; const v=Number(u)/1e8, a=Math.abs(v); const s=a>=1e6?(a/1e6).toFixed(2)+'m':a>=1e4?(a/1e3).toFixed(1)+'k':a>=1?a.toLocaleString('en-NG',{maximumFractionDigits:2}):a.toLocaleString('en-NG',{maximumFractionDigits:8}); return (v<0?'−':'')+s; };
+const bps = v => v==null ? '—' : (Number(v)/100).toFixed(2)+'%';
+const int = v => v==null ? '—' : N0.format(Number(v));
+const fmtDate = s => s ? String(s).slice(0,10) : '—';
+const fmtTime = iso => iso ? new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'}) : '—';
+const fmtClock = iso => iso ? new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Africa/Lagos'}) : '—';
+const short = s => s ? String(s).slice(0,8) : '—';
+const title = s => String(s||'').replace(/_/g,' ');
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),2800); }
+
+// ---------- icons (16px, 1.5 stroke) ----------
+const I = {
+  overview:'<path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h3A1.5 1.5 0 0 1 8 3.5v3A1.5 1.5 0 0 1 6.5 8h-3A1.5 1.5 0 0 1 2 6.5zM10 3.5A1.5 1.5 0 0 1 11.5 2h1A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zM2 11.5A1.5 1.5 0 0 1 3.5 10h3A1.5 1.5 0 0 1 8 11.5v1A1.5 1.5 0 0 1 6.5 14h-3A1.5 1.5 0 0 1 2 12.5z"/>',
+  sessions:'<circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/>',
+  orders:'<path d="M3 4h10M3 8h7M3 12h5"/>',
+  fills:'<path d="M2.5 11 6 7l3 2.5 4.5-5.5"/><path d="M10.5 4h3v3"/>',
+  instruments:'<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M5 10V7M8 10V5.5M11 10V8.5"/>',
+  listings:'<path d="M3 13.5V4a1.5 1.5 0 0 1 1.5-1.5h7A1.5 1.5 0 0 1 13 4v9.5"/><path d="M2 13.5h12M6 5.5h1M9 5.5h1M6 8h1M9 8h1M7 13.5v-3h2v3"/>',
+  members:'<circle cx="6" cy="5.5" r="2.5"/><path d="M2 13.5c0-2.5 1.8-4 4-4s4 1.5 4 4"/><circle cx="11.5" cy="6" r="2"/><path d="M11 9.5c1.8 0 3 1.4 3 3.5"/>',
+  mm:'<path d="M2 8h2l2-4 3 8 2-5 1.5 1H14"/>',
+  surveillance:'<path d="M8 2.5 13 4.5v4c0 3-2.2 4.8-5 5.5-2.8-.7-5-2.5-5-5.5v-4z"/><path d="M6 8l1.5 1.5L10.5 6.5"/>',
+  halts:'<circle cx="8" cy="8" r="5.5"/><path d="M6 6v4M10 6v4"/>',
+  closed:'<rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+  buyback:'<path d="M3 5.5A5.5 5.5 0 0 1 12.5 4L14 5.5M13 10.5A5.5 5.5 0 0 1 3.5 12L2 10.5"/><path d="M14 2v3.5h-3.5M2 14v-3.5h3.5"/>',
+  settlement:'<path d="M2 5.5h12M2 5.5v6A1.5 1.5 0 0 0 3.5 13h9a1.5 1.5 0 0 0 1.5-1.5v-6M4 3h8"/><path d="M5 9.5h3"/>',
+  recon:'<path d="M2.5 6.5 5 4l2.5 2.5M5 4v8M13.5 9.5 11 12l-2.5-2.5M11 12V4"/>',
+  corp:'<path d="M8 2.5v11M4.5 5.5l3.5-3 3.5 3M4.5 10.5l3.5 3 3.5-3"/>',
+  disclosures:'<path d="M3 3.5h10v7H6.5L3 13z"/><path d="M5.5 6.5h5M5.5 8.5h3"/>',
+  calendar:'<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5 2v2M11 2v2"/>',
+  index:'<path d="M2 12.5 6 7l3 3 5-6.5"/>',
+  complaints:'<circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.5M8 10.8v.2"/>',
+  clock:'<circle cx="8" cy="8" r="5.5"/><path d="M8 4.5V8l2.5 1.5"/>',
+  text:'<path d="M3 4h10M3 8h10M3 12h6"/>',
+  hash:'<path d="M6 2.5 4.5 13.5M11.5 2.5 10 13.5M3 6h10.5M2.5 10h10.5"/>',
+  number:'<path d="M2.5 5h11M2.5 11h11M6.5 2.5 5 13.5M11 2.5 9.5 13.5"/>',
+  chip:'<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.5"/>',
+  date:'<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5 2v2M11 2v2"/>',
+  time:'<circle cx="8" cy="8" r="5.5"/><path d="M8 4.5V8l2.5 1.5"/>',
+  money:'<circle cx="8" cy="8" r="5.5"/><path d="M8 4.5v7M6 6.5h3a1.25 1.25 0 0 1 0 2.5H7a1.25 1.25 0 0 0 0 2.5h3"/>',
+  units:'<path d="M8 2 13.5 5v6L8 14 2.5 11V5z"/><path d="M8 8v6M2.5 5 8 8l5.5-3"/>',
+  bool:'<rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="m5.5 8 2 2 3-4"/>',
+  link:'<path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1"/>',
+  sun:'<circle cx="8" cy="8" r="2.75"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/>',
+  moon:'<path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/>',
+  auto:'<rect x="2" y="3" width="12" height="9" rx="1.5"/><path d="M6 14h4"/>',
+  x:'<path d="m4 4 8 8M12 4l-8 8"/>',
+  filter:'<path d="M2.5 3.5h11L9.5 8.5v4l-3 1v-5z"/>',
+  sort:'<path d="M4.5 3v10M4.5 13l-2-2M4.5 13l2-2M11.5 13V3M11.5 3l-2 2M11.5 3l2 2"/>',
+  check:'<path d="m3.5 8.5 3 3 6-7"/>',
+  arrow:'<path d="M3 8h10M9 4l4 4-4 4"/>',
+  play:'<path d="M5 3.5v9l7-4.5z"/>',
+};
+const ic = (n, cls='i') => `<svg class="${cls}" viewBox="0 0 16 16" aria-hidden="true">${I[n]||I.text}</svg>`;
+
+// ---------- session (token + operator, in localStorage) ----------
+const SS = { get(){ try{ return JSON.parse(localStorage.getItem('freedom.console.session')||'null') }catch(e){ return null } },
+  set(v){ try{ localStorage.setItem('freedom.console.session', JSON.stringify(v)) }catch(e){} },
+  clear(){ try{ localStorage.removeItem('freedom.console.session') }catch(e){} } };
+class ApiError extends Error { constructor(status, code, message){ super(message); this.status=status; this.code=code; } }
+async function api(path, opts={}){
+  const s = SS.get(); if(!s) throw new ApiError(401,'unauthenticated','Not signed in');
+  const headers = Object.assign({'Authorization':'Bearer '+s.token, 'X-Operator': s.name}, opts.body?{'Content-Type':'application/json'}:{}, opts.headers||{});
+  const r = await fetch('/console/api/'+path, Object.assign({}, opts, {headers, body: opts.body?JSON.stringify(opts.body):undefined}));
+  let j = null; try{ j = await r.json() }catch(e){}
+  if(r.status===401){ signOut(); throw new ApiError(401, 'unauthenticated', 'Session expired; sign in again'); }
+  if(!r.ok) throw new ApiError(r.status, j?.code||'error', j?.message||r.statusText);
+  return j;
+}
+async function signIn(e){
+  e.preventDefault();
+  const name=$('#si-name').value.trim(), token=$('#si-token').value;
+  const err=$('#si-err'); err.textContent='';
+  if(!name){ err.textContent='Enter your name.'; return; }
+  const r = await fetch('/console/api/overview',{headers:{'Authorization':'Bearer '+token}});
+  if(r.status===401){ err.textContent='That token was not accepted.'; return; }
+  if(!r.ok){ err.textContent='The console could not be reached ('+r.status+').'; return; }
+  SS.set({name, token}); $('#si-token').value='';
+  boot();
+}
+function signOut(){ SS.clear(); $('#app').hidden=true; $('#signin').hidden=false; $('#si-name').focus(); }
+$('#signin-form').onsubmit = signIn;
+$('#signout').onclick = signOut;
+
+// ---------- theme ----------
+const THEMES=[['system','auto','System'],['light','sun','Light'],['dark','moon','Dark']];
+function applyTheme(t){ if(t==='system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=t; try{localStorage.setItem('freedom.console.theme',t)}catch(e){}
+  $('#theme').innerHTML=THEMES.map(([k,i,l])=>`<button class="${k===t?'on':''}" data-theme="${k}" title="${l}" aria-label="${l}">${ic(i)}</button>`).join('');
+  $$('#theme button').forEach(b=>b.onclick=()=>applyTheme(b.dataset.theme)); }
+applyTheme((()=>{try{return localStorage.getItem('freedom.console.theme')||'system'}catch(e){return 'system'}})());
+
+// ---------- nav ----------
+const NAV = [
+  ['Market', [['overview','Overview','overview'],['sessions','Sessions','sessions','sessions_today'],['orders','Orders','orders'],['fills','Fills','fills','trades_today']]],
+  ['Records', [['instruments','Instruments','instruments','listed'],['listings','Companies & listings','listings','pending_applications'],['members','Members','members','active_members'],['market-makers','Market makers','mm','mm_not_met_today']]],
+  ['Integrity', [['surveillance','Surveillance','surveillance','open_alerts'],['halts','Halts & incidents','halts','open_halts_incidents'],['closed-periods','Closed periods','closed']]],
+  ['Post-trade', [['buyback','Buyback','buyback','buyback_pending_intents'],['settlement','Settlement','settlement'],['reconciliation','Reconciliation','recon','open_breaks']]],
+  ['Institution', [['corporate-actions','Corporate actions','corp'],['disclosures','Disclosures','disclosures','unpublished_disclosures'],['calendar','Calendar','calendar'],['index','Index','index'],['complaints','Complaints & protection','complaints','open_complaints'],['clock','Clock','clock','clock_out_of_bounds_24h']]],
+];
+function renderNav(){
+  const c = state.overview?.counts||{}; const sess=(state.overview?.sessions_by_state||[]).reduce((a,r)=>a+r.n,0);
+  const cnt = k => k==='sessions_today' ? sess : k==='open_halts_incidents' ? (c.open_halts||0)+(c.open_incidents||0) : (c[k]??'');
+  $('#nav').innerHTML = NAV.map(([g,items])=>`<div class="grp"><div class="eyebrow">${g}</div>${items.map(([v,l,i,k])=>`<a href="#/${v}" data-view="${v}" class="${state.view===v?'on':''}">${ic(i)}<span>${l}</span><span class="cnt">${k?(cnt(k)||''):''}</span></a>`).join('')}</div>`).join('');
+}
+
+// ---------- state / routing ----------
+const state = { view:'overview', id:null, overview:null, data:null, rows:[], filters:[], sort:null, q:'', tab:null, sel:null, params:{} };
+function route(){
+  const h=location.hash.replace(/^#\/?/,''); const [view, ...rest]=h.split('/'); const id = rest.length?decodeURIComponent(rest.join('/')):null;
+  const changed = view!==state.view || id!==state.id;
+  state.view = view||'overview'; state.id=id;
+  if(changed){ state.filters=[]; state.sort=null; state.q=''; $('#q').value=''; state.sel=null; closePeek(); }
+  load();
+}
+window.addEventListener('hashchange', route);
+async function boot(){
+  const s=SS.get(); if(!s){ signOut(); return; }
+  $('#signin').hidden=true; $('#app').hidden=false; $('#who').innerHTML='<b>'+esc(s.name)+'</b>'; $('#who').title='Signed in as '+s.name;
+  await refreshOverview(); route();
+}
+async function refreshOverview(){ try{ state.overview = await api('overview'); $('#sb-date').textContent = state.overview.business_date + ' · ' + title(state.overview.phase); renderNav(); }catch(e){ if(e.status!==401) toast(e.message); } }
+setInterval(refreshOverview, 60000);
+
+// ---------- loading a view ----------
+let loadSeq=0;
+async function load(){
+  const spec = VIEWS[state.view] || VIEWS.overview;
+  const seq=++loadSeq;
+  renderNav(); setCrumb(spec); $('#hd-actions').innerHTML=''; $('#toolbar').innerHTML='';
+  $('#content').innerHTML='<div class="loading"><span class="spin"></span>Loading</div>';
+  try{
+    if(state.view==='instruments' && state.id){ state.data = await api('instruments/'+encodeURIComponent(state.id)); if(seq!==loadSeq) return; renderRecord(); return; }
+    state.data = await spec.load(state.params);
+    if(seq!==loadSeq) return;
+    state.rows = spec.rows ? (spec.rows(state.data)||[]) : [];
+    render();
+    if(state.id && spec.open) spec.open(state.id);
+  }catch(e){ if(seq!==loadSeq) return; $('#content').innerHTML=`<div class="empty">${esc(e.message)}</div>`; }
+}
+function setCrumb(spec){ $('#crumb').innerHTML=`<span class="obj">${esc(spec.object)}</span><span class="sep">›</span><span>${esc(spec.title)}</span>`; }
+function render(){
+  const spec = VIEWS[state.view] || VIEWS.overview;
+  setCrumb(spec);
+  $('#hd-actions').innerHTML = (spec.actions||[]).map((a,i)=>`<button class="btn ${a.kind||''}" data-act="${i}">${a.icon?ic(a.icon):''}${esc(a.label)}</button>`).join('');
+  $$('#hd-actions [data-act]').forEach(b=>b.onclick=()=>spec.actions[b.dataset.act].run());
+  if(spec.render){ $('#toolbar').innerHTML = spec.toolbar ? spec.toolbar() : ''; spec.render($('#content')); return; }
+  renderToolbar(spec); renderTable(spec);
+  const n = spec.toolbarNote && spec.toolbarNote(state.data); if(n) $('#content').insertAdjacentHTML('afterbegin', `<div class="note">${esc(n)}</div>`);
+}
+
+// ---------- list views: filter / sort / table ----------
+function visibleRows(spec){
+  let rows = state.rows.slice();
+  for(const f of state.filters) rows = rows.filter(r => String(r[f.k]??'') === f.v);
+  if(state.q){ const q=state.q.toLowerCase(); rows = rows.filter(r => spec.columns.some(c => String(cellText(c, r)).toLowerCase().includes(q))); }
+  const s = state.sort || spec.defaultSort;
+  if(s){ const c = spec.columns.find(x=>x.k===s.k); rows.sort((a,b)=>{ const va=a[s.k], vb=b[s.k]; if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1; const n = (typeof va==='number'&&typeof vb==='number') ? va-vb : String(va).localeCompare(String(vb)); return s.dir*n; }); }
+  return rows;
+}
+function renderToolbar(spec){
+  const tb=$('#toolbar'); const rows = visibleRows(spec);
+  const chipCols = spec.columns.filter(c=>c.t==='chip'||c.t==='bool');
+  const sortCols = spec.columns.filter(c=>!c.nosort);
+  const s = state.sort;
+  tb.innerHTML = (spec.dateParam ? `<label class="chipbtn set" style="border-style:solid">${ic('date')}<input type="date" id="tb-date" class="tnum" style="border:0;background:transparent;color:inherit;font:inherit;outline:none" value="${esc(state.params.date||state.overview?.business_date||'')}"></label>` : '')
+    + state.filters.map((f,i)=>`<button class="chipbtn set" data-rm="${i}">${ic('filter')}${esc(colLabel(spec,f.k))} is <b>${esc(title(f.v))}</b><span class="x">${ic('x')}</span></button>`).join('')
+    + (chipCols.length?`<button class="chipbtn" id="tb-filter">${ic('filter')}Filter</button>`:'')
+    + `<button class="chipbtn ${s?'set':''}" id="tb-sort">${ic('sort')}${s?esc(colLabel(spec,s.k))+' '+(s.dir>0?'↑':'↓'):'Sort'}</button>`
+    + `<span class="count">${rows.length} ${rows.length===1?'record':'records'}${state.data?.next_cursor?' · more available':''}</span>`;
+  $$('#toolbar [data-rm]').forEach(b=>b.onclick=()=>{ state.filters.splice(+b.dataset.rm,1); render(); });
+  const fd=$('#tb-date'); if(fd) fd.onchange=()=>{ state.params.date=fd.value; load(); };
+  const fb=$('#tb-filter'); if(fb) fb.onclick=()=>popover(fb, chipCols.flatMap(c=>{ const vals=[...new Set(state.rows.map(r=>String(r[c.k]??'')))].filter(v=>v!=='').sort(); return [{hdr:c.l}, ...vals.map(v=>({label:title(v), k:String(state.rows.filter(r=>String(r[c.k]??'')===v).length), run:()=>{ state.filters=state.filters.filter(f=>f.k!==c.k); state.filters.push({k:c.k,v}); render(); }}))]; }));
+  const sb=$('#tb-sort'); sb.onclick=()=>popover(sb, [...sortCols.map(c=>({label:c.l, k: s&&s.k===c.k?(s.dir>0?'asc':'desc'):'', run:()=>{ state.sort = s&&s.k===c.k ? {k:c.k, dir:-s.dir} : {k:c.k, dir: c.t==='chip'||c.t==='text'||c.t==='sym'?1:-1}; render(); }})), ...(s?[{hdr:''},{label:'Clear sort', run:()=>{ state.sort=null; render(); }}]:[])]);
+}
+function colLabel(spec,k){ return (spec.columns.find(c=>c.k===k)||{l:k}).l; }
+function popover(anchor, items){
+  closePop(); const p=document.createElement('div'); p.className='pop'; p.id='pop';
+  const r=anchor.getBoundingClientRect(), tr=anchor.offsetParent.getBoundingClientRect(); p.style.left=(r.left-tr.left)+'px';
+  p.innerHTML = items.map((it,i)=> it.hdr!==undefined ? `<div class="hdr">${esc(it.hdr)}</div>` : `<div class="it" data-i="${i}"><span>${esc(it.label)}</span><span class="k">${esc(it.k||'')}</span></div>`).join('');
+  anchor.parentElement.appendChild(p);
+  $$('.it',p).forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); items[+el.dataset.i].run(); closePop(); });
+  setTimeout(()=>document.addEventListener('click', closePop, {once:true}),0);
+}
+function closePop(){ const p=$('#pop'); if(p) p.remove(); }
+const TYPE_ICON = {sym:'instruments', text:'text', chip:'chip', kobo:'money', units:'units', num:'number', bps:'number', mono:'hash', date:'date', time:'time', bool:'bool', link:'link'};
+function cellText(c, r){ const v=r[c.k]; if(c.f) return c.f(v, r); switch(c.t){ case 'kobo': return naira(v); case 'units': return shares(v); case 'bps': return bps(v); case 'num': return int(v); case 'date': return fmtDate(v); case 'time': return fmtTime(v); case 'bool': return v==null?'—':v?'yes':'no'; case 'mono': return v==null?'—':String(v); default: return v==null||v===''?'—':String(v); } }
+function cellHtml(c, r){
+  const v=r[c.k];
+  if(c.h) return c.h(v, r);
+  if(c.t==='chip') return chip(v, c.tone);
+  if(c.t==='bool') return v==null?'<span class="faint">—</span>':chip(v?(c.yes||'yes'):(c.no||'no'), v?(c.yesTone||'green'):(c.noTone||'gray'));
+  if(c.t==='mono') return v==null?'<span class="faint">—</span>':`<span class="mono" title="${esc(v)}">${esc(c.full?v:short(v))}</span>`;
+  if(c.t==='link') return v?`<a href="${esc(v)}">${esc(c.text||'open')}</a>`:'';
+  const t = cellText(c, r); return t==='—'?'<span class="faint">—</span>':esc(t);
+}
+const TONES = { listed:'green', active:'green', published:'green', allocated:'green', met:'green', settled:'green', resolved:'green', final:'green', executed:'green', approved:'green', upheld:'green', paid:'green', applied:'green', continuous:'green', filled:'green', delivered:'green',
+  accepting:'blue', open:'blue', scheduled:'gray', frozen:'purple', uncrossed:'purple', triaged:'purple', in_review:'purple', investigating:'purple', with_member:'purple', with_exchange:'purple', record_taken:'purple', instructed:'purple', partial:'purple', computing:'purple', pending:'orange', escrowed:'orange', warned:'orange', warn:'orange', submitted:'orange', deferred_dust:'orange', capped:'orange', cutoff:'orange', announced:'orange', under_review:'orange', batched:'orange', requested:'orange', halted:'red', suspended:'red', block:'red', cancelled:'red', rejected:'red', failed:'red', terminated:'red', demoted:'red', unwound:'red', delisted:'red', escalated:'red', escalated_sec:'red', written_off:'red', returned:'red', false_positive:'gray', closed:'gray', referred:'yellow', info:'gray', draft:'gray', withdrawn:'gray', expired:'gray', amended:'gray', auction_only:'gray', auction:'gray', clob:'blue', carry_forward:'yellow', manual:'purple', treasury:'gray', buy:'green', sell:'red', volatility:'red', news_pending:'orange', regulatory:'red', data_quality:'yellow', issuer_request:'gray', results:'blue', corporate_action:'purple', material_event:'orange', director_dealing:'gray', shareholding:'gray', listing_particulars:'blue', suspension:'red', band_breach:'red', wash_suspected:'red', stale_reference:'yellow', liquidity_review:'gray', mark_the_auction:'red', wash_trading:'red', ramping:'red', order_to_trade_ratio:'orange', closed_period_trade:'red', broker:'blue', market_maker:'purple', issuer_agent:'gray', issuer:'blue', acquirer:'purple', scheme:'gray', split:'purple', bonus:'purple', cash_dividend:'green', return_of_capital:'green', limit:'gray', market:'blue', in:'green', out:'orange', ok:'green', yes:'green', no:'gray', none:'gray' };
+function chip(v, tone){ if(v==null||v==='') return '<span class="faint">—</span>'; const t = typeof tone==='function'?tone(v):(tone||TONES[String(v)]||'gray'); return `<span class="chip ${t}"><i></i>${esc(title(v))}</span>`; }
+function renderTable(spec, rows, opts={}){
+  rows = rows || visibleRows(spec); const el = opts.el || $('#content');
+  if(!rows.length){ el.innerHTML = `<div class="empty">${esc(spec.empty||'Nothing here yet.')}</div>`; return; }
+  const s = state.sort || spec.defaultSort;
+  const head = `<tr>${opts.compact?'':'<th class="ck"><input type="checkbox" aria-label="select all"></th>'}${spec.columns.map((c,i)=>`<th class="${i===0?'first':''} ${c.r||['kobo','units','num','bps'].includes(c.t)?'r':''}" data-k="${c.k}"><span class="h">${ic(c.icon||TYPE_ICON[c.t]||'text')}<span>${esc(c.l)}</span>${s&&s.k===c.k?`<span class="dir">${s.dir>0?'▲':'▼'}</span>`:''}</span></th>`).join('')}</tr>`;
+  const body = rows.map((r,ri)=>`<tr data-i="${ri}" class="${state.sel!=null&&spec.key&&spec.key(r)===state.sel?'sel':''}">${opts.compact?'':'<td class="ck"><input type="checkbox" aria-label="select row"></td>'}${spec.columns.map((c,i)=>`<td class="${i===0?'first':''} ${c.r||['kobo','units','num','bps'].includes(c.t)?'r num':''} ${c.t==='mono'?'num':''}" title="${esc(cellText(c,r))}">${cellHtml(c,r)}</td>`).join('')}</tr>`).join('');
+  el.innerHTML = `<table class="tbl ${opts.compact?'compact':''}"><thead>${head}</thead><tbody>${body}</tbody></table>` + (state.data?.next_cursor && !opts.compact ? `<div class="more"><button class="btn sm" id="more">Load more</button></div>`:'');
+  $$('tbody tr', el).forEach(tr=>tr.onclick=(e)=>{ if(e.target.type==='checkbox') return; const r=rows[+tr.dataset.i]; if(spec.key){ state.sel=spec.key(r); $$('tbody tr.sel',el).forEach(x=>x.classList.remove('sel')); tr.classList.add('sel'); } (opts.onRow||spec.onRow||(r=>spec.peek&&openPeek(spec.peek(r))))(r); });
+  $$('thead th[data-k]', el).forEach(th=>th.onclick=()=>{ const k=th.dataset.k; const c=spec.columns.find(x=>x.k===k); const ns = s&&s.k===k ? {k, dir:-s.dir} : {k, dir: ['chip','text','sym','mono'].includes(c.t)?1:-1};
+    if(opts.compact){ const sorted=rows.slice().sort((a,b)=>{ const va=a[k], vb=b[k]; if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1; return ns.dir*((typeof va==='number'&&typeof vb==='number')?va-vb:String(va).localeCompare(String(vb))); }); renderTable(Object.assign({},spec,{defaultSort:ns}), sorted, opts); return; }
+    state.sort = ns; render(); });
+  $$('.ck input', el).forEach(cb=>cb.onclick=e=>e.stopPropagation());
+  const more=$('#more', el); if(more) more.onclick=async()=>{ more.disabled=true; try{ const d=await spec.load(Object.assign({}, state.params, {cursor: state.data.next_cursor})); state.rows=state.rows.concat(spec.rows(d)); state.data.next_cursor=d.next_cursor; render(); }catch(e){ toast(e.message); more.disabled=false; } };
+}
+
+// ---------- peek panel ----------
+function attrRow(label, valueHtml, icon='text', wrap=false){ return `<div class="k">${ic(icon)}<span>${esc(label)}</span></div><div class="v ${wrap?'wrap':''}">${valueHtml==null||valueHtml===''||valueHtml==='—'?'<span class="faint">—</span>':valueHtml}</div>`; }
+function attrsFrom(columns, r){ return columns.map(c=>attrRow(c.l, cellHtml(c, r), c.icon||TYPE_ICON[c.t]||'text')).join(''); }
+function openPeek(p){
+  const el=$('#peek'); el.setAttribute('aria-hidden','false'); el.classList.add('on'); state.peek=p;
+  el.innerHTML = `<div class="ph"><div style="min-width:0;flex:1"><h2>${esc(p.title)}</h2>${p.sub?`<div class="sub">${p.sub}</div>`:''}${p.chips&&p.chips.length?`<div class="chips">${p.chips.join('')}</div>`:''}</div><button class="btn sm close" id="peek-close" aria-label="Close">${ic('x')}</button></div>
+    <div class="pb"><div class="attrs">${p.attrs||''}</div>${(p.sections||[]).map(s=>`<div class="sec"><h3>${esc(s.title)}</h3>${s.html}</div>`).join('')}<div id="peek-acts"></div></div>`;
+  $('#peek-close').onclick=closePeek;
+  renderPeekActions(p);
+}
+function renderPeekActions(p, confirmIdx){
+  const box=$('#peek-acts'); if(!box) return; const acts=p.actions||[];
+  if(!acts.length){ box.innerHTML=''; return; }
+  if(confirmIdx==null){ box.innerHTML = `<div class="acts">${acts.map((a,i)=>`<button class="btn ${a.kind||''}" data-i="${i}">${esc(a.label)}</button>`).join('')}</div>`; $$('[data-i]',box).forEach(b=>b.onclick=()=>{ const a=acts[+b.dataset.i]; if(a.confirm||a.form) renderPeekActions(p, +b.dataset.i); else runAction(p, a, {}); }); return; }
+  const a=acts[confirmIdx];
+  box.innerHTML = `<div class="confirm"><p>${esc(a.confirm||'Confirm this action.')}</p>${(a.form||[]).map(f=>`<div class="field"><label>${esc(f.label)}</label>${f.type==='select'?`<select class="in" name="${f.name}">${f.options.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:f.type==='textarea'?`<textarea class="in" name="${f.name}" placeholder="${esc(f.placeholder||'')}"></textarea>`:`<input class="in" name="${f.name}" placeholder="${esc(f.placeholder||'')}" value="${esc(f.value||'')}">`}</div>`).join('')}
+    <div class="row"><button class="btn ${a.kind==='danger'?'danger':'primary'}" id="cf-go">${esc(a.verb||a.label)}</button><button class="btn" id="cf-no">Cancel</button></div><div class="err" id="cf-err"></div></div>`;
+  $('#cf-no').onclick=()=>renderPeekActions(p);
+  $('#cf-go').onclick=()=>{ const vals={}; $$('.confirm [name]',box).forEach(i=>vals[i.name]=i.value); runAction(p, a, vals); };
+  const first=$('.confirm .in',box); if(first) first.focus();
+}
+async function runAction(p, a, vals){
+  const go=$('#cf-go'); if(go){ go.disabled=true; go.innerHTML='<span class="spin"></span>'; }
+  try{ await a.run(vals); toast(a.done||'Done'); await refreshOverview(); }
+  catch(e){ const er=$('#cf-err'); if(er) er.textContent=e.message; else toast(e.message); if(go){ go.disabled=false; go.textContent=a.verb||a.label; } }
+}
+function closePeek(){ const el=$('#peek'); el.classList.remove('on'); el.setAttribute('aria-hidden','true'); state.peek=null; state.sel=null; $$('.tbl tr.sel').forEach(x=>x.classList.remove('sel')); }
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closePeek(); closePop(); return; }
+  const typing = /input|textarea|select/i.test(document.activeElement?.tagName||'');
+  if((e.key==='/' && !typing) || ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k')){ e.preventDefault(); $('#q').focus(); $('#q').select(); }
+});
+$('#q').addEventListener('input', ()=>{ state.q=$('#q').value.trim(); const spec=VIEWS[state.view]; if(spec&&spec.columns&&!state.id) render(); });
+$('#q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ const q=$('#q').value.trim().toUpperCase(); if(/^[A-Z][A-Z0-9]{2,11}$/.test(q) && (state.overview?.instruments||[]).some(i=>i.symbol===q)){ location.hash='#/instruments/'+q; } } });
+function jsonBlock(v){ return `<pre class="json">${esc(JSON.stringify(v??{}, null, 2))}</pre>`; }
+
+// ---------- shared action builders ----------
+const HALT_REASONS = [['volatility','Volatility'],['news_pending','News pending'],['regulatory','Regulatory'],['data_quality','Data quality'],['issuer_request','Issuer request']];
+const haltActions = (symbol, halted) => halted
+  ? [{label:'Release halt', kind:'primary', verb:'Release', confirm:`Release the halt on ${symbol}? The next session will price it again.`, done:`${symbol} released`, run: async()=>{ await api(`instruments/${symbol}/release`,{method:'POST'}); load(); }}]
+  : [{label:'Halt trading', kind:'danger', verb:'Halt', confirm:`Halt trading in ${symbol}? The buyback will escrow until it is released.`, done:`${symbol} halted`, form:[{name:'reason',label:'Reason',type:'select',options:HALT_REASONS},{name:'detail',label:'Note',type:'textarea',placeholder:'What the market should know when it is released'}], run: async v=>{ await api(`instruments/${symbol}/halt`,{method:'POST', body:{reason:v.reason, detail:v.detail}}); load(); }}];
+const gateActions = (symbol, clob, passes) => clob
+  ? [{label:'Demote to auction-only', kind:'danger', verb:'Demote', confirm:`Return ${symbol} to auction-only? Resting continuous-book orders are cancelled and their reservations released.`, done:`${symbol} demoted`, run: async()=>{ await api(`instruments/${symbol}/demote`,{method:'POST'}); load(); }}]
+  : [{label:'Graduate to continuous', kind: passes?'primary':'', verb:'Graduate', confirm: passes?`Open continuous trading in ${symbol}? The report it passed on is recorded.`:`${symbol} does not currently pass the standard; the engine will refuse and say why.`, done:`${symbol} graduated`, run: async()=>{ await api(`instruments/${symbol}/graduate`,{method:'POST'}); load(); }}];
+const alertActions = a => {
+  const acts=[]; const id=a.id;
+  if(a.state==='open') acts.push({label:'Triage', kind:'primary', verb:'Assign', confirm:'Assign this alert to someone. An alert nobody owns is not being worked.', done:'Alert triaged', form:[{name:'assignee',label:'Assignee',value:SS.get()?.name||''}], run: async v=>{ const r=await api(`alerts/${id}/triage`,{method:'POST',body:{assignee:v.assignee}}); patchRow(r); openPeek(VIEWS.surveillance.peek(r)); }});
+  if(!['closed','false_positive'].includes(a.state)) acts.push({label:'Close alert', kind:'danger', verb:'Close', confirm: a.severity==='block'?'Closing a blocking alert lets the buyback price this instrument again. It carries your name.':'Record the decision on this alert.', done:'Alert closed', form:[{name:'outcome',label:'Outcome',type:'select',options:[['actioned','Actioned'],['false_positive','False positive'],['referred','Referred'],['escalated','Escalated'],['closed','Closed, no action']]},{name:'notes',label:'Notes',type:'textarea',placeholder:'What was found'}], run: async v=>{ const r=await api(`alerts/${id}/close`,{method:'POST',body:{outcome:v.outcome, notes:v.notes}}); patchRow(r); openPeek(VIEWS.surveillance.peek(r)); }});
+  return acts;
+};
+function patchRow(r){ const spec=VIEWS[state.view]; if(!spec||!spec.key) { load(); return; } const k=spec.key(r); const i=state.rows.findIndex(x=>spec.key(x)===k); if(i>=0) state.rows[i]=r; else state.rows.unshift(r); render(); }
+const symLink = (v) => v ? `<a href="#/instruments/${esc(v)}">${esc(v)}</a>` : '<span class="faint">—</span>';
+const symCol = {k:'symbol', l:'Symbol', t:'sym', h:symLink};
+
+// ---------- views ----------
+const VIEWS = {};
+VIEWS.overview = { object:'Market', title:'Overview', load: ()=>api('overview'), render: renderOverview, toolbar: ()=>{ const d=state.data||{}; return `<span class="muted" style="font-size:12px">Business date <b class="tnum">${esc(d.business_date||'')}</b> · ${d.is_trading?'trading day':'not a trading day'} · phase ${esc(title(d.phase||''))}</span><span class="count">refreshed ${esc(new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'}))} Lagos</span>`; },
+  actions:[{label:'Run close', kind:'primary', icon:'play', run: ()=>openPeek({title:'Run the market close', sub:'Every listed instrument, for '+(state.overview?.business_date||'today'), attrs: attrRow('What runs','Open if unopened → uncross → settle → surveillance → buyback','sessions',true)+attrRow('Idempotent','A published session is skipped; the buyback re-runs harmlessly','check',true), actions:[{label:'Run close now', kind:'primary', verb:'Run close', confirm:'Close the market for '+(state.overview?.business_date||'today')+'? Sessions still accepting will freeze and uncross.', done:'Close ran', run: async()=>{ const r=await api('market/close',{method:'POST',body:{}}); openPeek({title:'Close result', sub:'by '+esc(r.by), attrs:(r.instruments||[]).map(x=>attrRow(x.symbol, chip(x.state)+' '+(x.price_kobo?`<span class="num"> ${naira(x.price_kobo)}</span>`:'')+(x.error?`<span class="muted"> ${esc(x.error)}</span>`:'')+`<span class="muted"> · buyback ${x.buyback.intents} intents${x.buyback.refusal?', '+esc(x.buyback.refusal):''}</span>`,'instruments',true)).join('')||attrRow('Instruments','none listed')}); load(); }}]}) }] };
+
+VIEWS.sessions = { object:'Market', title:'Sessions', dateParam:true, key:r=>r.auction_id,
+  load: p=>api('sessions?date='+(p.date||'')+(p.cursor?'&cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No sessions on this date.',
+  columns:[symCol,{k:'state',l:'State',t:'chip'},{k:'orders',l:'Orders',t:'num'},{k:'clearing_price_kobo',l:'Clearing price',t:'kobo',h:(v,r)=>r.dark?'<span class="faint">dark</span>':v==null?'<span class="faint">—</span>':`<span>${naira(v)}</span>`},{k:'matched_units',l:'Matched',t:'units'},{k:'imbalance_units',l:'Imbalance',t:'units',h:(v,r)=>v==null?'<span class="faint">—</span>':`${shares(v)} <span class="muted">${esc(r.imbalance_side||'')}</span>`},{k:'rule',l:'Rule',t:'chip',tone:'gray'},{k:'zero_volume',l:'Zero volume',t:'bool',yes:'zero',no:'traded',yesTone:'yellow',noTone:'green'},{k:'buyback_units',l:'Buyback',t:'units'},{k:'buyback_state',l:'Buyback state',t:'chip'},{k:'engine_version',l:'Engine',t:'num'},{k:'result_hash',l:'Result hash',t:'mono'}],
+  peek: r=>({title:r.symbol+' · '+r.session_date, sub: r.dark?'Accepting orders. The book is dark by design: nothing but the order count is visible until the freeze.':'Session '+r.auction_id, chips:[chip(r.state), r.zero_volume?chip('zero volume','yellow'):'', r.dark?chip('book dark','blue'):''].filter(Boolean),
+    attrs: attrRow('Orders', int(r.orders), 'number') + (r.dark ? attrRow('Opens', fmtTime(r.opens_at),'time')+attrRow('Freezes', fmtTime(r.freezes_at),'time') : attrsFrom(VIEWS.sessions.columns.slice(3).filter(c=>!['result_hash','buyback_units','buyback_state'].includes(c.k)), r) + attrRow('Previous reference', naira(r.prev_reference_kobo),'money') + attrRow('Trades', int(r.trades),'number') + attrRow('Notional', naira(r.notional_kobo),'money') + attrRow('Alerts raised', int(r.alerts),'surveillance') + attrRow('Frozen', fmtTime(r.frozen_at),'time') + attrRow('Uncrossed', fmtTime(r.uncrossed_at),'time') + attrRow('Book hash', r.book_hash?`<span class="mono" style="word-break:break-all">${esc(r.book_hash)}</span>`:'', 'hash', true) + attrRow('Result hash', r.result_hash?`<span class="mono" style="word-break:break-all">${esc(r.result_hash)}</span>`:'', 'hash', true) + attrRow('Buyback', r.buyback_batch_id?`${chip(r.buyback_state)} ${shares(r.buyback_units)} at ${naira(r.buyback_price_kobo)} for ${naira(r.buyback_funding_kobo)}`:'no batch', 'buyback', true)),
+    sections: r.dark?[]:[{title:'Look at', html:`<a href="#/orders" onclick="state.params.date='${esc(r.session_date)}'">Orders ${esc(r.session_date)}</a> · <a href="#/fills" onclick="state.params.date='${esc(r.session_date)}'">Fills</a> · <a href="#/instruments/${esc(r.symbol)}">${esc(r.symbol)} record</a>`}]}) };
+
+VIEWS.orders = { object:'Market', title:'Orders', dateParam:true, key:r=>r.id,
+  load: p=>api('orders?date='+(p.date||'')+(p.cursor?'&cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No visible orders on this date.',
+  toolbarNote: d=>d.extra?.dark_sessions?`${d.extra.dark_orders} orders in ${d.extra.dark_sessions} session${d.extra.dark_sessions>1?'s':''} still accepting are not shown; the book is dark until the freeze.`:'',
+  columns:[symCol,{k:'side',l:'Side',t:'chip'},{k:'type',l:'Type',t:'chip'},{k:'state',l:'State',t:'chip'},{k:'limit_kobo',l:'Limit',t:'kobo'},{k:'qty_units',l:'Quantity',t:'units'},{k:'filled_units',l:'Filled',t:'units'},{k:'notional_kobo',l:'Notional',t:'kobo'},{k:'member',l:'Member',t:'text'},{k:'client_account',l:'Account',t:'text'},{k:'tif',l:'TIF',t:'chip',tone:'gray'},{k:'auction_seq',l:'Seq',t:'num'},{k:'created_at',l:'Entered',t:'time'},{k:'id',l:'Order id',t:'mono'}],
+  peek: r=>({title:'Order '+short(r.id), sub:r.symbol+' · '+fmtTime(r.created_at), chips:[chip(r.side),chip(r.state),chip(r.venue)], attrs: attrsFrom(VIEWS.orders.columns, r)+attrRow('Reserved', (r.reserved_kobo?naira(r.reserved_kobo):'')+(r.reserved_units?' '+shares(r.reserved_units)+' sh':''),'money')+attrRow('Owner key', r.owner_key?`<span class="mono">${esc(r.owner_key)}</span>`:'', 'hash')+attrRow('Client order id', r.client_order_id,'hash')+attrRow('Reject reason', r.reject_reason,'text',true)+attrRow('Session', r.session_state?chip(r.session_state):'','sessions')}) };
+
+VIEWS.fills = { object:'Market', title:'Fills', dateParam:true, key:r=>r.id,
+  load: p=>api('fills?date='+(p.date||'')+(p.cursor?'&cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No fills on this date.',
+  columns:[symCol,{k:'side',l:'Side',t:'chip'},{k:'units',l:'Units',t:'units'},{k:'price_kobo',l:'Price',t:'kobo'},{k:'consideration_kobo',l:'Consideration',t:'kobo'},{k:'fee_kobo',l:'Fee',t:'kobo'},{k:'venue',l:'Venue',t:'chip'},{k:'member',l:'Member',t:'text'},{k:'created_at',l:'Settled',t:'time'},{k:'ledger_tx_id',l:'Ledger tx',t:'mono'},{k:'id',l:'Fill',t:'num'}],
+  peek: r=>({title:'Fill #'+r.id, sub:r.symbol+' · '+r.session_date, chips:[chip(r.side),chip(r.venue)], attrs: attrsFrom(VIEWS.fills.columns, r)+attrRow('Order', `<span class="mono">${esc(r.order_id)}</span>`,'hash')+attrRow('Contra order', r.contra_order_id?`<span class="mono">${esc(r.contra_order_id)}</span>`:'','hash')+attrRow('Owner key', r.owner_key?`<span class="mono">${esc(r.owner_key)}</span>`:'','hash')}) };
+
+VIEWS.instruments = { object:'Records', title:'Instruments', key:r=>r.symbol,
+  load: p=>api('instruments'+(p.cursor?'?cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No instruments. Onboarding a business through the rail lists one.',
+  columns:[{k:'symbol',l:'Symbol',t:'sym'},{k:'legal_name',l:'Company',t:'text'},{k:'status',l:'Status',t:'chip'},{k:'clob_review_state',l:'Structure',t:'chip'},{k:'halted',l:'Halted',t:'bool',yes:'halted',no:'trading',yesTone:'red',noTone:'green'},{k:'session_state',l:'Session today',t:'chip'},{k:'reference_price_kobo',l:'Reference',t:'kobo'},{k:'treasury_units',l:'Treasury',t:'units',f:v=>sharesC(v)},{k:'in_issue_units',l:'In issue',t:'units',f:v=>sharesC(v)},{k:'holders',l:'Holders',t:'num'},{k:'carry_forward_sessions',l:'Carried',t:'num'},{k:'open_block_alerts',l:'Block alerts',t:'num'},{k:'listed_at',l:'Listed',t:'date'}],
+  onRow: r=>{ location.hash='#/instruments/'+r.symbol; } };
+
+VIEWS.listings = { object:'Records', title:'Companies & listings', key:r=>r.id,
+  load: p=>api('listings'+(p.cursor?'?cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No listing applications yet.',
+  columns:[{k:'symbol',l:'Proposed symbol',t:'sym',h:(v,r)=>r.instrument_status?symLink(v):`<span>${esc(v)}</span>`},{k:'legal_name',l:'Company',t:'text'},{k:'trading_name',l:'Trading as',t:'text'},{k:'state',l:'State',t:'chip'},{k:'met',l:'Criteria met',t:'num',h:(v,r)=>`<span class="num">${v} / ${r.criteria}</span>`},{k:'rc_number',l:'RC number',t:'mono',full:true},{k:'mcc',l:'MCC',t:'mono',full:true},{k:'merchant_ref',l:'Merchant ref',t:'mono',full:true},{k:'sponsor',l:'Sponsor',t:'text'},{k:'escrowed_kobo',l:'Escrowed funding',t:'kobo'},{k:'decided_by',l:'Decided by',t:'text'},{k:'created_at',l:'Applied',t:'time'}],
+  open: id=>{ const r=state.rows.find(x=>x.id===id); if(r) openPeek(VIEWS.listings.peek(r)); },
+  peek: r=>({title:r.legal_name, sub:'Application '+r.id, chips:[chip(r.state), r.instrument_status?chip(r.instrument_status):''].filter(Boolean), attrs: attrsFrom(VIEWS.listings.columns, r)+attrRow('Decided', fmtTime(r.decided_at),'time')+attrRow('Note', r.note,'text',true),
+    sections:[{title:'Findings against the rulebook', html: (r.findings||[]).length?`<div class="check">${(r.findings||[]).map(f=>`<div class="${f.met?'ok':'no'}">${ic(f.met?'check':'x')}</div><div>${esc(title(f.criterion))}</div><div class="muted" style="grid-column:span 2">${esc(f.detail)}</div>`).join('')}</div>`:'<span class="muted">No findings recorded.</span>'}]}) };
+
+VIEWS.members = { object:'Records', title:'Members', key:r=>r.id,
+  load: p=>api('members'+(p.cursor?'?cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No members.',
+  columns:[{k:'code',l:'Code',t:'sym'},{k:'legal_name',l:'Member',t:'text'},{k:'roles',l:'Roles',t:'text',h:v=>(v||[]).map(x=>chip(x)).join(' ')},{k:'status',l:'Status',t:'chip'},{k:'halted',l:'Kill switch',t:'bool',yes:'halted',no:'clear',yesTone:'red',noTone:'green'},{k:'orders_sent',l:'Orders today',t:'num'},{k:'orders_filled',l:'Filled',t:'num'},{k:'cancels',l:'Cancels',t:'num'},{k:'rejects',l:'Rejects',t:'num'},{k:'client_accounts',l:'Accounts',t:'num'},{k:'mm_appointments',l:'MM roles',t:'num'},{k:'max_orders_per_session',l:'Order cap',t:'num'},{k:'max_order_to_trade_ratio',l:'OTR cap',t:'num'}],
+  peek: r=>({title:r.legal_name, sub:r.code+' · member since '+fmtDate(r.created_at), chips:[chip(r.status), r.halted?chip('halted','red'):chip('clear','green')], attrs: attrsFrom(VIEWS.members.columns, r)+attrRow('Halt reason', r.halted_reason,'text',true),
+    actions: r.halted ? [{label:'Lift kill switch', kind:'primary', verb:'Lift', confirm:'Let '+r.code+' send orders again?', done:'Member released', run: async()=>{ const m=await api(`members/${r.id}/release`,{method:'POST'}); patchRow(Object.assign({},r,m)); openPeek(VIEWS.members.peek(Object.assign({},r,m))); }}]
+      : [{label:'Halt member', kind:'danger', verb:'Halt', confirm:'Stop '+r.code+' at the gateway? Existing orders stand; nothing new is accepted.', done:'Member halted', form:[{name:'reason',label:'Reason',placeholder:'e.g. runaway algorithm'}], run: async v=>{ const m=await api(`members/${r.id}/halt`,{method:'POST',body:{reason:v.reason}}); patchRow(Object.assign({},r,m)); openPeek(VIEWS.members.peek(Object.assign({},r,m))); }}]}) };
+
+VIEWS['market-makers'] = { object:'Records', title:'Market makers', key:r=>r.provider_id,
+  load: ()=>api('providers'), rows: d=>d.rows, empty:'No designated market makers appointed.',
+  columns:[symCol,{k:'member',l:'Member',t:'text'},{k:'state',l:'State',t:'chip'},{k:'today_met',l:'Today',t:'bool',yes:'met',no:'not met',yesTone:'green',noTone:'red'},{k:'today_shortfall',l:'Shortfall',t:'text'},{k:'uptime_bps',l:'Uptime (20)',t:'bps'},{k:'uptime_sessions',l:'Measured',t:'num'},{k:'today_bid_kobo',l:'Bid',t:'kobo'},{k:'today_ask_kobo',l:'Ask',t:'kobo'},{k:'today_spread_bps',l:'Spread',t:'bps'},{k:'today_size_kobo',l:'Size',t:'kobo'},{k:'min_quote_kobo',l:'Min quote',t:'kobo'},{k:'max_spread_bps',l:'Max spread',t:'bps'},{k:'min_uptime_bps',l:'Min uptime',t:'bps'},{k:'rebate_bps',l:'Rebate',t:'bps'},{k:'from_date',l:'From',t:'date'},{k:'to_date',l:'To',t:'date'}],
+  peek: r=>({title:r.member+' on '+r.symbol, sub:r.member_name, chips:[chip(r.state), r.today_met==null?chip('not measured today','gray'):chip(r.today_met?'met today':'missed today', r.today_met?'green':'red')], attrs: attrsFrom(VIEWS['market-makers'].columns, r)}) };
+
+VIEWS.surveillance = { object:'Integrity', title:'Surveillance', key:r=>r.id,
+  load: p=>api('alerts'+(p.cursor?'?cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No alerts raised. Surveillance runs after every settled session.', defaultSort:{k:'id',dir:-1},
+  columns:[{k:'id',l:'Alert',t:'num',r:false,h:v=>`<span class="num">#${v}</span>`},symCol,{k:'detection',l:'Detection',t:'chip'},{k:'severity',l:'Severity',t:'chip'},{k:'state',l:'State',t:'chip'},{k:'subject_group',l:'Subject',t:'mono',full:true},{k:'session_date',l:'Session',t:'date'},{k:'assigned_to',l:'Assignee',t:'text'},{k:'raised_at',l:'Raised',t:'time'},{k:'closed_by',l:'Closed by',t:'text'},{k:'outcome',l:'Outcome',t:'chip'}],
+  open: async id=>{ try{ const a=await api('alerts/'+id); openPeek(VIEWS.surveillance.peek(a)); }catch(e){ toast(e.message);} },
+  peek: r=>({title:'#'+r.id+' '+title(r.detection), sub:r.symbol+' · session '+(r.session_date||'—')+' · raised '+fmtTime(r.raised_at), chips:[chip(r.severity),chip(r.state)], attrs: attrRow('Subject', r.subject_group?`<span class="mono">${esc(r.subject_group)}</span>`:'','hash')+attrRow('Assignee', r.assigned_to,'members')+attrRow('Triaged', fmtTime(r.triaged_at),'time')+attrRow('Reviewed', fmtTime(r.reviewed_at),'time')+attrRow('Closed by', r.closed_by,'members')+attrRow('Outcome', r.outcome?chip(r.outcome):'','chip')+attrRow('Notes', r.notes?esc(r.notes):'','text',true),
+    sections:[{title:'Evidence', html: jsonBlock(r.evidence)}], actions: alertActions(r)}) };
+
+VIEWS.halts = { object:'Integrity', title:'Halts & incidents', render: renderHalts, load: async p=>{ const [h,i]=await Promise.all([api('halts'), api('incidents')]); return {halts:h, incidents:i}; } };
+
+VIEWS['closed-periods'] = { object:'Integrity', title:'Closed periods', key:r=>r.id,
+  load: ()=>api('closed-periods'), rows: d=>d.rows, empty:'No closed periods declared.',
+  columns:[symCol,{k:'reason',l:'Reason',t:'chip'},{k:'active',l:'Active',t:'bool',yes:'active',no:'not active',yesTone:'red',noTone:'gray'},{k:'from_date',l:'From',t:'date'},{k:'to_date',l:'To (excl.)',t:'date'},{k:'declared_by',l:'Declared by',t:'text'},{k:'created_at',l:'Declared',t:'time'}],
+  peek: r=>({title:r.symbol+' · '+title(r.reason), sub:'Related parties may not trade during this period', chips:[chip(r.reason), r.active?chip('active','red'):''].filter(Boolean), attrs: attrsFrom(VIEWS['closed-periods'].columns, r)+attrRow('Period', `<span class="mono">${esc(r.period)}</span>`,'date')}) };
+
+VIEWS.buyback = { object:'Post-trade', title:'Buyback', dateParam:true, render: renderBuyback, toolbar: ()=>'', load: p=>api('buyback?date='+(p.date||'')) };
+VIEWS.settlement = { object:'Post-trade', title:'Settlement', render: renderSettlement, load: ()=>api('settlement') };
+VIEWS.reconciliation = { object:'Post-trade', title:'Reconciliation', render: renderRecon, load: ()=>api('recon') };
+
+VIEWS['corporate-actions'] = { object:'Institution', title:'Corporate actions', key:r=>r.id,
+  load: p=>api('corporate-actions'+(p.cursor?'?cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No corporate actions announced.',
+  columns:[symCol,{k:'kind',l:'Kind',t:'chip'},{k:'state',l:'State',t:'chip'},{k:'ratio_num',l:'Ratio',t:'text',h:(v,r)=>v?`<span class="num">${v}:${r.ratio_den}</span>`:'<span class="faint">—</span>'},{k:'dps_kobo',l:'Per share',t:'kobo'},{k:'wht_bps',l:'WHT',t:'bps'},{k:'announced_on',l:'Announced',t:'date'},{k:'ex_date',l:'Ex-date',t:'date'},{k:'record_date',l:'Record',t:'date'},{k:'pay_date',l:'Pay',t:'date'},{k:'entitlements',l:'Entitlements',t:'num'},{k:'gross_kobo',l:'Gross',t:'kobo'},{k:'wht_kobo',l:'Withheld',t:'kobo'}],
+  peek: r=>({title:r.symbol+' · '+title(r.kind), sub:'Ex '+r.ex_date+' · record '+r.record_date, chips:[chip(r.kind),chip(r.state)], attrs: attrsFrom(VIEWS['corporate-actions'].columns, r)+attrRow('Ledger tx', r.ledger_tx_id?`<span class="mono">${esc(r.ledger_tx_id)}</span>`:'','hash')}) };
+
+VIEWS.disclosures = { object:'Institution', title:'Disclosures', key:r=>r.id,
+  load: p=>api('disclosures'+(p.cursor?'?cursor='+p.cursor:'')), rows: d=>d.rows, empty:'No announcements submitted.',
+  columns:[symCol,{k:'kind',l:'Kind',t:'chip'},{k:'headline',l:'Headline',t:'text'},{k:'pending',l:'Published',t:'bool',yes:'unpublished',no:'published',yesTone:'orange',noTone:'green'},{k:'holding_halt',l:'Halt',t:'bool',yes:'holding a halt',no:'—',yesTone:'red',noTone:'gray'},{k:'submitted_by',l:'Submitted by',t:'text'},{k:'submitted_at',l:'Submitted',t:'time'},{k:'published_at',l:'Published at',t:'time'}],
+  open: id=>{ const r=state.rows.find(x=>x.id===id); if(r) openPeek(VIEWS.disclosures.peek(r)); },
+  peek: r=>({title:r.headline, sub:r.symbol+' · submitted '+fmtTime(r.submitted_at)+' by '+esc(r.submitted_by), chips:[chip(r.kind), r.pending?chip('unpublished','orange'):chip('published','green'), r.holding_halt?chip('holding a halt','red'):''].filter(Boolean), attrs: attrRow('Published', fmtTime(r.published_at),'time')+attrRow('Halt', r.halt_id?`<span class="mono">${esc(r.halt_id)}</span>`:'none','halts'),
+    sections:[{title:'Body', html:`<div class="body">${esc(r.body)}</div>`}],
+    actions: r.pending?[{label:'Publish to everyone', kind:'primary', verb:'Publish', confirm:'Publish this announcement to every holder at one instant'+(r.holding_halt?' and lift the halt it raised':'')+'?', done:'Published', run: async()=>{ const d=await api(`disclosures/${r.id}/publish`,{method:'POST'}); patchRow(d); openPeek(VIEWS.disclosures.peek(d)); }}]:[]}) };
+
+VIEWS.calendar = { object:'Institution', title:'Calendar', key:r=>r.session_date,
+  load: p=>api('calendar'+(p.from?'?from='+p.from+'&to='+p.to:'')), rows: d=>d.rows, empty:'No calendar published for this range. The rail assumes weekdays trade and says so in the log.',
+  columns:[{k:'session_date',l:'Date',t:'sym',h:(v,r)=>`<span>${esc(v)}</span>${v===state.data?.extra?.today?' '+chip('today','blue'):''}`},{k:'weekday',l:'Day',t:'text'},{k:'is_trading',l:'Trading',t:'bool',yes:'trading',no:'closed',yesTone:'green',noTone:'gray'},{k:'opens_at',l:'Opens',t:'text',f:v=>v?fmtClock(v):'—'},{k:'freezes_at',l:'Freezes',t:'text',f:v=>v?fmtClock(v):'—'},{k:'sessions',l:'Sessions',t:'num'},{k:'published',l:'Published',t:'num'},{k:'abandoned',l:'Abandoned',t:'num'},{k:'closed_periods',l:'Closed periods',t:'num'},{k:'note',l:'Note',t:'text'}],
+  peek: r=>({title:r.session_date, sub:r.weekday, chips:[r.is_trading?chip('trading','green'):chip('closed','gray')], attrs: attrsFrom(VIEWS.calendar.columns, r)}) };
+
+VIEWS.index = { object:'Institution', title:'Index', render: renderIndex, load: ()=>api('index') };
+VIEWS.complaints = { object:'Institution', title:'Complaints & protection', render: renderComplaints, load: async()=>{ const [c,p]=await Promise.all([api('complaints'),api('protection')]); return {complaints:c, protection:p}; } };
+VIEWS.clock = { object:'Institution', title:'Clock', key:r=>r.id,
+  load: ()=>api('clock'), rows: d=>d.rows, empty:'No clock checks recorded.',
+  columns:[{k:'checked_at',l:'Checked',t:'sym',h:v=>`<span class="num">${esc(fmtTime(v))}</span>`},{k:'source',l:'Source',t:'text'},{k:'offset_ms',l:'Offset',t:'num',h:v=>`<span class="num">${v>0?'+':''}${int(v)} ms</span>`},{k:'within_bounds',l:'Within bounds',t:'bool',yes:'ok',no:'out of bounds',yesTone:'green',noTone:'red'}],
+  peek: r=>({title:'Clock check #'+r.id, sub:fmtTime(r.checked_at)+' · server now '+fmtClock(state.data?.extra?.server_now), chips:[r.within_bounds?chip('ok','green'):chip('out of bounds','red')], attrs: attrsFrom(VIEWS.clock.columns, r)}) };
+
+// ---------- overview ----------
+function tile(n, label, sub, href, warn){ return `<a class="tl ${warn?'warn':''}" href="${href}" style="display:block;color:inherit;text-decoration:none"><div class="n">${n}</div><div class="l">${esc(label)}</div><div class="s">${sub||''}</div></a>`; }
+function renderOverview(el){
+  const d = state.data; state.overview = d; const c = d.counts; renderNav(); $('#sb-date').textContent = d.business_date + ' · ' + title(d.phase);
+  const sess = d.sessions_by_state||[]; const sessTotal = sess.reduce((a,r)=>a+r.n,0);
+  const published = (sess.find(r=>r.state==='published')||{n:0}).n, accepting=(sess.find(r=>r.state==='accepting')||{n:0}).n;
+  const tiles = [
+    tile(int(c.listed), 'Listed instruments', c.live>c.listed?`${c.live-c.listed} suspended or halted`:'auction-only unless graduated', '#/instruments'),
+    tile(int(sessTotal), 'Sessions today', sess.length?sess.map(r=>`${r.n} ${title(r.state)}`).join(' · '):'none opened yet', '#/sessions'),
+    tile(nairaC(c.notional_today_kobo), 'Notional traded today', `${int(c.trades_today)} trades · ${sharesC(c.matched_today_units)} sh`, '#/fills'),
+    tile(int(c.open_block_alerts), 'Open block alerts', `${int(c.open_alerts)} open or triaged in all`, '#/surveillance', c.open_block_alerts>0),
+    tile(int(c.open_halts), 'Open halts', `${int(c.open_incidents)} unresolved incidents`, '#/halts', c.open_halts>0),
+    tile(int(c.unpublished_disclosures), 'Unpublished disclosures', 'each one holds a market shut', '#/disclosures', c.unpublished_disclosures>0),
+    tile(int(c.pending_applications), 'Applications pending', 'submitted or in review', '#/listings'),
+    tile(int(c.mm_not_met_today), 'MM obligations missed', `${int(c.mm_active)} providers active today`, '#/market-makers', c.mm_not_met_today>0),
+    tile(nairaC(c.buyback_pending_kobo), 'Buyback funding pending', `${int(c.buyback_pending_intents)} intents · ${nairaC(c.buyback_escrowed_kobo)} escrowed`, '#/buyback'),
+    tile(nairaC(c.buyback_allocated_today_kobo), 'Bought back today', 'funding allocated at today\'s price', '#/buyback'),
+    tile(int(c.open_breaks), 'Open recon breaks', `${int(c.stale_references)} stale references`, '#/reconciliation', c.open_breaks>0||c.stale_references>0),
+    tile(int(c.open_complaints), 'Open complaints', `${int(c.overdue_complaints)} overdue`, '#/complaints', c.overdue_complaints>0),
+  ].join('');
+
+  // Session timeline. The day's shape is fixed by exchange.OpenHour / FreezeHour and the scheme cutover.
+  const now = new Date(d.now); const lagosH = Number(now.toLocaleString('en-GB',{hour:'2-digit',hour12:false,timeZone:'Africa/Lagos'}));
+  const steps=[['10:00','Open','orders accepted'],['12:00','Freeze','book closes'],['Uncross','Price discovered','one price, someone named it'],['Surveillance','Session reviewed','mark · wash · ramp'],['Buyback','Treasury release','pays the price it found'],['20:00','Cutover','business date rolls']];
+  let cur = !d.is_trading ? -1 : published>0 ? (lagosH>=20?5:4) : accepting>0 ? 0 : lagosH<10 ? -1 : lagosH<12 ? 0 : sessTotal>0 ? 2 : 1;
+  const timeline = `<div class="timeline"><div class="tl-track">${steps.map((s,i)=>`<div class="tl-step ${i<cur?'done':''} ${i===cur?'now':''}">${i===cur?'<div class="pin">now</div>':''}<div class="bar"></div><div class="t">${esc(s[0])}${/^\d/.test(s[0])?' · '+esc(s[1]):''}</div><div class="d">${esc(/^\d/.test(s[0])?s[2]:s[1]+' — '+s[2])}</div></div>`).join('')}</div>
+    <div class="muted" style="margin-top:12px;font-size:12px">${d.is_trading?`Trading day · phase <b>${esc(title(d.phase))}</b> · ${esc(now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'}))} Lagos`:'Not a trading day. Nothing opens; the reference carries forward.'}${cur===-1&&d.is_trading?' · before the open':''}</div></div>`;
+
+  el.innerHTML = `<div class="pad">
+    <div class="tiles">${tiles}</div>
+    <div class="sec-h"><h2>Session timeline</h2><span class="muted">${esc(d.business_date)}</span></div>${timeline}
+    <div class="sec-h"><h2>Needs a decision</h2><span class="muted">${d.queue.length} item${d.queue.length===1?'':'s'}</span></div><div class="panel" id="ov-queue"></div>
+    <div class="two" style="margin-top:26px">
+      <div><div class="sec-h" style="margin-top:0"><h2>Participant net positions</h2><span class="muted">ledger, and the last computed batch</span><a href="#/settlement">Settlement</a></div><div class="panel" id="ov-pos"></div></div>
+      <div><div class="sec-h" style="margin-top:0"><h2>Instruments today</h2><a href="#/instruments">All instruments</a></div><div class="panel" id="ov-inst"></div></div>
+    </div></div>`;
+  const qspec = {columns:[{k:'kind',l:'Kind',t:'chip',tone:v=>({alert:'red',halt:'red',disclosure:'orange',stale_reference:'yellow',incident:'yellow',mm_breach:'orange',application:'blue',break:'orange',gate:'green'}[v]||'gray')},{k:'symbol',l:'Symbol',t:'sym',h:symLink},{k:'title',l:'What',t:'text'},{k:'detail',l:'Detail',t:'text'},{k:'at',l:'Since',t:'time'},{k:'href',l:'',t:'link',text:'Open',nosort:true}], empty:'Nothing is waiting on a decision.'};
+  renderTable(qspec, d.queue, {el:$('#ov-queue'), compact:true, onRow:r=>{ location.hash=r.href; }});
+  const pspec = {columns:[{k:'code',l:'Participant',t:'sym'},{k:'roles',l:'Roles',t:'text',h:v=>(v||[]).map(x=>chip(x)).join(' ')},{k:'settlement_kobo',l:'Settlement',t:'kobo'},{k:'interchange_kobo',l:'Interchange',t:'kobo'},{k:'net_debit_cap_kobo',l:'Debit cap',t:'kobo'},{k:'last_net_kobo',l:'Last batch net',t:'kobo'},{k:'last_state',l:'Batch',t:'chip'}], empty:'No scheme participants yet.'};
+  renderTable(pspec, d.positions, {el:$('#ov-pos'), compact:true, onRow:r=>openPeek({title:r.legal_name, sub:r.code, chips:[chip(r.status)].concat((r.roles||[]).map(x=>chip(x))), attrs: attrsFrom(pspec.columns, r)+attrRow('Collateral', naira(r.collateral_kobo),'money')+attrRow('Last batch', r.last_batch_date,'date')})});
+  const ispec = {columns:[{k:'symbol',l:'Symbol',t:'sym',h:symLink},{k:'session_state',l:'Session',t:'chip'},{k:'reference_price_kobo',l:'Reference',t:'kobo'},{k:'halted',l:'Halted',t:'bool',yes:'halted',no:'trading',yesTone:'red',noTone:'green'}], empty:'No listed instruments.'};
+  renderTable(ispec, d.instruments, {el:$('#ov-inst'), compact:true, onRow:r=>{ location.hash='#/instruments/'+r.symbol; }});
+}
+
+// ---------- halts & incidents ----------
+function renderHalts(el){
+  const d=state.data; const open=d.halts.extra?.open||[], hist=d.halts.rows||[], inc=d.incidents.rows||[];
+  $('#toolbar').innerHTML=`<span class="muted" style="font-size:12px">${open.length} open halt${open.length===1?'':'s'} · ${inc.filter(x=>x.open).length} unresolved incident${inc.filter(x=>x.open).length===1?'':'s'}</span>`;
+  el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>Open halts</h2><span class="muted">the market saying it does not know the price</span></div><div class="panel" id="h-open"></div>
+    <div class="sec-h"><h2>Data-quality incidents</h2><span class="muted">band breaches, stale references, liquidity reviews</span></div><div class="panel" id="h-inc"></div>
+    <div class="sec-h"><h2>Halt history</h2></div><div class="panel" id="h-hist"></div></div>`;
+  const hspec={columns:[symCol,{k:'reason',l:'Reason',t:'chip'},{k:'raised_by',l:'Raised by',t:'text'},{k:'halted_at',l:'Halted',t:'time'},{k:'released_by',l:'Released by',t:'text'},{k:'released_at',l:'Released',t:'time'}], empty:'No open halts.'};
+  const hpeek=r=>({title:r.symbol+' · '+title(r.reason), sub:'Halt '+r.id, chips:[chip(r.reason), r.open?chip('open','red'):chip('released','gray')], attrs: attrsFrom(hspec.columns, r), sections:[{title:'Detail', html: jsonBlock(r.detail)}], actions: r.open?haltActions(r.symbol,true):[]});
+  renderTable(hspec, open, {el:$('#h-open'), compact:true, onRow:r=>openPeek(hpeek(r))});
+  renderTable(Object.assign({},hspec,{empty:'No halts have been released yet.'}), hist, {el:$('#h-hist'), compact:true, onRow:r=>openPeek(hpeek(r))});
+  const ispec={columns:[{k:'id',l:'Incident',t:'num',r:false,h:v=>`<span class="num">#${v}</span>`},symCol,{k:'kind',l:'Kind',t:'chip'},{k:'open',l:'State',t:'bool',yes:'unresolved',no:'resolved',yesTone:'orange',noTone:'green'},{k:'raised_at',l:'Raised',t:'time'},{k:'resolved_at',l:'Resolved',t:'time'}], empty:'No incidents.'};
+  renderTable(ispec, inc, {el:$('#h-inc'), compact:true, onRow:r=>openPeek({title:'#'+r.id+' '+title(r.kind), sub:(r.symbol||'')+' · '+fmtTime(r.raised_at), chips:[chip(r.kind), r.open?chip('unresolved','orange'):chip('resolved','green')], attrs: attrsFrom(ispec.columns, r), sections:[{title:'Detail', html: jsonBlock(r.detail)}]})});
+}
+
+// ---------- buyback ----------
+function renderBuyback(el){
+  const d=state.data;
+  $('#toolbar').innerHTML=`<label class="chipbtn set">${ic('date')}<input type="date" id="tb-date" class="tnum" style="border:0;background:transparent;color:inherit;font:inherit;outline:none" value="${esc(d.date)}"></label><span class="count">pool ${naira(d.pool.pool_kobo)} · loss reserve ${naira(d.pool.loss_reserve_kobo)}</span>`;
+  $('#tb-date').onchange=e=>{ state.params.date=e.target.value; load(); };
+  el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>Batches on ${esc(d.date)}</h2><span class="muted">one purchase per instrument per session, pro-rated back to every intent; release against the daily cap</span></div><div class="panel" id="bb-batches"></div>
+    <div class="two" style="margin-top:26px"><div><div class="sec-h" style="margin-top:0"><h2>Intents by state</h2><span class="muted">all time</span></div><div class="panel" id="bb-intents"></div></div>
+    <div><div class="sec-h" style="margin-top:0"><h2>Listings pipeline</h2><span class="muted">escrowed funding for unlisted merchants</span></div><div class="panel" id="bb-pipe"></div></div></div></div>`;
+  const bspec={columns:[symCol,{k:'state',l:'Batch',t:'chip',h:v=>v?chip(v):chip('no batch','gray')},{k:'intents',l:'Intents',t:'num'},{k:'funding_kobo',l:'Funding',t:'kobo'},{k:'units_bought',l:'Units bought',t:'units'},{k:'price_kobo',l:'Price paid',t:'kobo'},{k:'session_price_kobo',l:'Session price',t:'kobo'},{k:'residual_kobo',l:'Residual',t:'kobo'},{k:'released_units',l:'Released',t:'units',h:(v,r)=>`<span class="num">${sharesC(v)} <span class="faint">/ ${sharesC(r.daily_release_units)}</span></span>`},{k:'session_state',l:'Session',t:'chip'},{k:'source',l:'Source',t:'chip'}], empty:'No listed instruments.'};
+  renderTable(bspec, d.batches, {el:$('#bb-batches'), compact:true, onRow:r=>openPeek({title:r.symbol+' · '+r.session_date, sub:r.batch_id?'Batch '+r.batch_id:'No batch ran on this date', chips:[r.state?chip(r.state):chip('no batch','gray')], attrs: attrsFrom(bspec.columns, r)+attrRow('Reference', naira(r.reference_price_kobo),'money')+attrRow('Daily release cap', shares(r.daily_release_units),'units')})});
+  const ispec={columns:[symCol,{k:'state',l:'State',t:'chip'},{k:'intents',l:'Intents',t:'num'},{k:'funding_kobo',l:'Funding',t:'kobo'},{k:'units',l:'Units',t:'units'},{k:'residual_kobo',l:'Residual',t:'kobo'}], empty:'No buyback intents yet. A cleared tap creates one.'};
+  renderTable(ispec, d.intents, {el:$('#bb-intents'), compact:true});
+  const pspec={columns:[{k:'trading_name',l:'Merchant',t:'sym'},{k:'escrowed_kobo',l:'Escrowed',t:'kobo'},{k:'intents',l:'Taps',t:'num'},{k:'application_state',l:'Application',t:'chip',h:v=>v?chip(v):chip('none','gray')},{k:'proposed_symbol',l:'Symbol',t:'text'},{k:'since',l:'Since',t:'time'}], empty:'No escrowed funding. Every tap so far found a listed merchant.'};
+  renderTable(pspec, d.pipeline, {el:$('#bb-pipe'), compact:true, onRow:r=>openPeek({title:r.trading_name||r.legal_name, sub:r.legal_name, chips:[chip(r.kyb_status)], attrs: attrsFrom(pspec.columns, r)+attrRow('Merchant ref', r.merchant_ref?`<span class="mono">${esc(r.merchant_ref)}</span>`:'','hash')+attrRow('MCC', r.mcc,'hash')})});
+}
+
+// ---------- settlement ----------
+function renderSettlement(el){
+  const d=state.data; const b=d.batch;
+  $('#toolbar').innerHTML = b?`<span class="muted" style="font-size:12px">Batch ${esc(b.business_date)} cycle ${b.cycle} · ${chip(b.state)} · ${int(b.presentments)} presentments · ${naira(b.gross_kobo)} gross</span>`:'';
+  if(!b){ el.innerHTML='<div class="empty">No clearing batch has run. The first tap opens one.</div>'; return; }
+  el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>Positions in the latest batch</h2><span class="muted">net per participant, against its debit cap</span></div><div class="panel" id="st-pos"></div>
+    <div class="sec-h"><h2>Settlement instructions</h2><span class="muted">latest 50</span></div><div class="panel" id="st-ins"></div></div>`;
+  const pspec={columns:[{k:'code',l:'Participant',t:'sym'},{k:'state',l:'State',t:'chip'},{k:'net_kobo',l:'Net',t:'kobo'},{k:'acquired_kobo',l:'Acquired',t:'kobo'},{k:'issued_kobo',l:'Issued',t:'kobo'},{k:'interchange_kobo',l:'Interchange',t:'kobo'},{k:'fees_kobo',l:'Fees',t:'kobo'},{k:'net_debit_cap_kobo',l:'Debit cap',t:'kobo'},{k:'cap_breach_kobo',l:'Cap breach',t:'kobo'},{k:'computed_at',l:'Computed',t:'time'},{k:'settled_at',l:'Settled',t:'time'}], empty:'No positions computed for this batch yet.'};
+  renderTable(pspec, d.positions, {el:$('#st-pos'), compact:true, onRow:r=>openPeek({title:r.legal_name, sub:r.code, chips:[chip(r.state)].concat((r.roles||[]).map(x=>chip(x))), attrs: attrsFrom(pspec.columns, r)+attrRow('Instruction', r.instruction_id?`<span class="mono">${esc(r.instruction_id)}</span>`:'','hash')})});
+  const ispec={columns:[{k:'direction',l:'Direction',t:'sym',h:v=>chip(v)},{k:'amount_kobo',l:'Amount',t:'kobo'},{k:'state',l:'State',t:'chip'},{k:'rail',l:'Rail',t:'text'},{k:'owner_type',l:'Account',t:'text',f:(v,r)=>v+' · '+title(r.account_kind)},{k:'external_ref',l:'External ref',t:'mono',full:true},{k:'created_at',l:'Created',t:'time'}], empty:'No settlement instructions. Paying a net position is a treasury operation, not a code path.'};
+  renderTable(ispec, d.instructions, {el:$('#st-ins'), compact:true});
+}
+
+// ---------- reconciliation ----------
+function renderRecon(el){
+  const d=state.data; const open=d.breaks.filter(b=>b.state==='open').length;
+  $('#toolbar').innerHTML=`<span class="muted" style="font-size:12px">${d.runs.length} recent runs · ${open} open break${open===1?'':'s'}</span>`;
+  el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>Breaks</h2><span class="muted">open first</span></div><div class="panel" id="rc-breaks"></div>
+    <div class="sec-h"><h2>Runs</h2><span class="muted">three-way: ledger, lots, fills</span></div><div class="panel" id="rc-runs"></div></div>`;
+  const bspec={columns:[{k:'id',l:'Break',t:'num',r:false,h:v=>`<span class="num">#${v}</span>`},{k:'kind',l:'Kind',t:'chip',tone:'gray'},{k:'state',l:'State',t:'chip'},{k:'subject',l:'Subject',t:'mono',full:true},{k:'expected',l:'Expected',t:'num'},{k:'actual',l:'Actual',t:'num'},{k:'business_date',l:'Date',t:'date'},{k:'run_kind',l:'Run',t:'chip',tone:'gray'},{k:'resolved_by',l:'Resolved by',t:'text'}], empty:'No breaks. The three views of the book agree.'};
+  renderTable(bspec, d.breaks, {el:$('#rc-breaks'), compact:true, onRow:r=>openPeek({title:'Break #'+r.id+' · '+title(r.kind), sub:r.subject, chips:[chip(r.state)], attrs: attrsFrom(bspec.columns, r)+attrRow('Note', r.note,'text',true)+attrRow('Resolved', fmtTime(r.resolved_at),'time'), sections:[{title:'Detail', html:jsonBlock(r.detail)}]})});
+  const rspec={columns:[{k:'ran_at',l:'Ran',t:'sym',h:v=>`<span class="num">${esc(fmtTime(v))}</span>`},{k:'kind',l:'Kind',t:'chip',tone:'gray'},{k:'business_date',l:'Date',t:'date'},{k:'checked',l:'Checked',t:'num'},{k:'breaks',l:'Breaks',t:'num',h:v=>v>0?`<span class="num" style="color:var(--c-red)">${v}</span>`:`<span class="num">0</span>`}], empty:'No reconciliation runs recorded.'};
+  renderTable(rspec, d.runs, {el:$('#rc-runs'), compact:true});
+}
+
+// ---------- index ----------
+function renderIndex(el){
+  const d=state.data; $('#toolbar').innerHTML=`<span class="muted" style="font-size:12px">${d.indices.length} ind${d.indices.length===1?'ex':'ices'}</span>`;
+  if(!d.indices.length){ el.innerHTML='<div class="empty">No index defined.</div>'; return; }
+  el.innerHTML=`<div class="pad">${d.indices.map((ix,i)=>`<div class="sec-h" style="margin-top:${i?26:0}px"><h2>${esc(ix.name)}</h2><span class="muted">${esc(ix.id)} · ${esc(title(ix.method))} · base ${(ix.base_value/10000).toFixed(2)} on ${esc(ix.base_date)} · cap ${bps(ix.max_weight_bps)}</span><span class="muted" style="margin-left:auto">latest <b class="num">${ix.latest_bps?(ix.latest_bps/10000).toFixed(4):'—'}</b> ${esc(ix.latest_date||'')}</span></div>
+    <div class="two"><div class="panel" style="padding:14px"><div id="ix-chart-${i}" class="chart"></div></div><div class="panel" id="ix-members-${i}"></div></div>`).join('')}</div>`;
+  d.indices.forEach((ix,i)=>{ lineChart($('#ix-chart-'+i), ix.values.map(v=>({x:v.obs_date, y:v.value_bps/10000, label:(v.value_bps/10000).toFixed(4)+' · '+v.constituents+' constituents'})), {fmt:v=>v.toFixed(2)});
+    renderTable({columns:[symCol,{k:'status',l:'Status',t:'chip'},{k:'reference_price_kobo',l:'Reference',t:'kobo'},{k:'added_on',l:'Added',t:'date'},{k:'removed_on',l:'Removed',t:'date'}], empty:'No constituents.'}, ix.members, {el:$('#ix-members-'+i), compact:true, onRow:r=>{ location.hash='#/instruments/'+r.symbol; }}); });
+}
+
+// ---------- complaints & protection ----------
+function renderComplaints(el){
+  const d=state.data; const open=d.complaints.rows.filter(c=>!['resolved','withdrawn'].includes(c.state)).length;
+  $('#toolbar').innerHTML=`<span class="muted" style="font-size:12px">${open} open complaint${open===1?'':'s'} · protection fund ${naira(d.protection.extra?.fund_kobo)}</span>`;
+  el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>Complaints</h2><span class="muted">against a member, an issuer or the exchange</span></div><div class="panel" id="cp-c"></div>
+    <div class="sec-h"><h2>Protection claims</h2><span class="muted">the investor protection fund</span></div><div class="panel" id="cp-p"></div></div>`;
+  const cspec={columns:[{k:'subject',l:'Subject',t:'sym'},{k:'against',l:'Against',t:'chip'},{k:'state',l:'State',t:'chip'},{k:'overdue',l:'Due',t:'bool',yes:'overdue',no:'in time',yesTone:'red',noTone:'gray'},{k:'respond_by',l:'Respond by',t:'date'},{k:'complainant',l:'Complainant',t:'text'},{k:'member',l:'Member',t:'text'},symCol,{k:'handled_by',l:'Handled by',t:'text'},{k:'created_at',l:'Filed',t:'time'}], empty:'No complaints filed.'};
+  renderTable(cspec, d.complaints.rows, {el:$('#cp-c'), compact:true, onRow:r=>openPeek({title:r.subject, sub:'Complaint '+r.id, chips:[chip(r.against),chip(r.state), r.overdue?chip('overdue','red'):''].filter(Boolean), attrs: attrsFrom(cspec.columns, r)+attrRow('Resolved', fmtTime(r.resolved_at),'time')+attrRow('Resolution', r.resolution,'text',true), sections:[{title:'Narrative', html:`<div class="body">${esc(r.narrative)}</div>`}]})});
+  const pspec={columns:[{k:'claimant',l:'Claimant',t:'sym'},{k:'grounds',l:'Grounds',t:'chip',tone:'gray'},{k:'state',l:'State',t:'chip'},{k:'amount_kobo',l:'Claimed',t:'kobo'},{k:'awarded_kobo',l:'Awarded',t:'kobo'},{k:'member',l:'Member',t:'text'},{k:'decided_by',l:'Decided by',t:'text'},{k:'decided_at',l:'Decided',t:'time'},{k:'created_at',l:'Filed',t:'time'}], empty:'No protection claims.'};
+  renderTable(pspec, d.protection.rows, {el:$('#cp-p'), compact:true, onRow:r=>openPeek({title:title(r.grounds)+' · '+naira(r.amount_kobo), sub:'Claim '+r.id, chips:[chip(r.state)], attrs: attrsFrom(pspec.columns, r)+attrRow('Ledger tx', r.ledger_tx_id?`<span class="mono">${esc(r.ledger_tx_id)}</span>`:'','hash'), sections:[{title:'Narrative', html:`<div class="body">${esc(r.narrative)}</div>`}]})});
+}
+
+// ---------- line chart (plain SVG) ----------
+function lineChart(el, pts, opts={}){
+  const W=Math.max(360, el.clientWidth||760), H=280, L=54, R=16, T=16, B=30; const marks = opts.marks||[];
+  if(!pts.length){ el.innerHTML='<div class="empty" style="padding:60px 0;text-align:center">No observations yet.</div>'; return; }
+  const ys=pts.map(p=>p.y); let lo=Math.min(...ys), hi=Math.max(...ys); if(lo===hi){ lo=lo*0.95||0; hi=hi*1.05||1; } const pad=(hi-lo)*0.08; lo-=pad; hi+=pad;
+  const x=i=>L+(pts.length===1?(W-L-R)/2:(i/(pts.length-1))*(W-L-R)), y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  const fmt=opts.fmt||(v=>v.toFixed(2)); const ticks=[0,.25,.5,.75,1].map(t=>lo+(hi-lo)*t);
+  const grid=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--hair)" stroke-width="1"/><text x="${L-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="JetBrains Mono,monospace">${fmt(v)}</text>`).join('');
+  const xl=[0,Math.floor((pts.length-1)/2),pts.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" font-size="11" fill="var(--ink-3)" font-family="JetBrains Mono,monospace">${esc(pts[i].x)}</text>`).join('');
+  const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.y).toFixed(1)).join(' ');
+  const mk=marks.map(m=>{ const i=pts.findIndex(p=>p.x>=m.x); if(i<0) return ''; return `<line x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="2 3"/><text x="${(x(i)+4).toFixed(1)}" y="${T+10}" font-size="10" fill="var(--ink-3)">${esc(m.label)}</text>`; }).join('');
+  const last=pts[pts.length-1];
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" id="ch">${grid}${xl}${mk}<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><circle cx="${x(pts.length-1).toFixed(1)}" cy="${y(last.y).toFixed(1)}" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/><circle id="ch-dot" r="3.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" style="display:none"/><line id="ch-x" y1="${T}" y2="${H-B}" stroke="var(--hair-2)" style="display:none"/><rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" id="ch-hit"/></svg><div class="tip" id="ch-tip" style="display:none"></div>`;
+  const svg=$('#ch',el), hit=$('#ch-hit',el), tip=$('#ch-tip',el), dot=$('#ch-dot',el), vx=$('#ch-x',el);
+  hit.onmousemove=e=>{ const r=svg.getBoundingClientRect(); const px=(e.clientX-r.left)/r.width*W; const i=Math.max(0,Math.min(pts.length-1,Math.round((px-L)/(W-L-R)*(pts.length-1)))); const p=pts[i];
+    dot.setAttribute('cx',x(i)); dot.setAttribute('cy',y(p.y)); dot.style.display=''; vx.setAttribute('x1',x(i)); vx.setAttribute('x2',x(i)); vx.style.display='';
+    tip.style.display=''; tip.style.left=(x(i)/W*r.width)+'px'; tip.style.top=(y(p.y)/H*r.height)+'px'; tip.innerHTML=`<b>${esc(p.x)}</b><br>${esc(p.label||fmt(p.y))}`; };
+  hit.onmouseleave=()=>{ tip.style.display='none'; dot.style.display='none'; vx.style.display='none'; };
+}
+
+// ---------- instrument record ----------
+function renderRecord(){
+  const d=state.data, i=d.instrument, sym=i.symbol; const liq=d.liquidity;
+  $('#crumb').innerHTML=`<span class="obj"><a href="#/instruments" style="color:inherit">Instruments</a></span><span class="sep">›</span><span>${esc(sym)}</span>`;
+  $('#toolbar').innerHTML=`<span class="muted" style="font-size:12px">${esc(i.legal_name)}${i.trading_name?' · trading as '+esc(i.trading_name):''}${i.rc_number?' · '+esc(i.rc_number):''}</span><span class="count">as of ${esc(state.overview?.business_date||'')}</span>`;
+  const acts=[];
+  acts.push(...haltActions(sym, i.halted)); acts.push(...gateActions(sym, i.clob_enabled, liq.passes));
+  $('#hd-actions').innerHTML = acts.map((a,k)=>`<button class="btn ${a.kind==='primary'?'primary':''}" data-a="${k}">${esc(a.label)}</button>`).join('');
+  $$('#hd-actions [data-a]').forEach(b=>b.onclick=()=>{ const a=acts[+b.dataset.a]; openPeek({title:a.label, sub:sym+' · '+esc(i.legal_name), chips:[chip(i.status), i.halted?chip('halted','red'):'', chip(i.clob_review_state)].filter(Boolean), attrs: attrRow('Reference', naira(i.reference_price_kobo),'money')+attrRow('Session today', i.session_state?chip(i.session_state):'none','sessions')+attrRow('Open block alerts', int(i.open_block_alerts),'surveillance')+attrRow('Liquidity standard', liq.passes?chip('passes','green'):chip(liq.failures.length+' failing','orange'),'index'), actions:[a]}); setTimeout(()=>renderPeekActions(state.peek,0),0); });
+  const A=(l,v,ic_,wrap)=>attrRow(l,v,ic_,wrap);
+  const left=`<div class="rec-attrs">
+    <div class="sec" style="margin-top:6px"><h3>Listing</h3><div class="attrs">${A('Status',chip(i.status),'chip')}${A('Structure',chip(i.clob_review_state),'chip')}${A('Listed',fmtDate(i.listed_at),'date')}${A('Company',esc(i.legal_name),'listings')}${A('RC number',i.rc_number?`<span class="mono">${esc(i.rc_number)}</span>`:'','hash')}${A('Merchant',i.trading_name?esc(i.trading_name)+(i.mcc?` <span class="muted">MCC ${esc(i.mcc)}</span>`:''):'','listings')}${A('Merchant ref',i.merchant_ref?`<span class="mono">${esc(i.merchant_ref)}</span>`:'','hash')}${A('Co-funding',i.cofund_bps!=null?bps(i.cofund_bps):'','money')}${A('Instrument id',`<span class="mono">${esc(i.instrument_id)}</span>`,'hash')}</div></div>
+    <div class="sec"><h3>Book policy</h3><div class="attrs">${A('Reference',`<span class="num">${naira(i.reference_price_kobo)}</span>`,'money')}${A('Last observation',i.last_obs_date?`<span class="num">${naira(i.last_obs_price_kobo)}</span> <span class="muted">${esc(i.last_obs_date)}</span> ${chip(i.last_obs_source)}`:'','fills',true)}${A('Carried forward',`<span class="num">${i.carry_forward_sessions} / ${i.max_carry_forward_sessions}</span>`,'number')}${A('Static band',bps(i.static_band_bps),'number')}${A('Dynamic band',bps(i.dynamic_band_bps),'number')}${A('Halt move',bps(i.halt_move_bps),'halts')}${A('Tick',naira(i.tick_kobo),'money')}${A('Lot',shares(i.lot_units)+' sh','units')}${A('Min notional',naira(i.min_order_notional_kobo),'money')}${A('Max notional',i.max_order_notional_kobo?naira(i.max_order_notional_kobo):'none','money')}${A('Max order',i.max_order_units?shares(i.max_order_units)+' sh':'none','units')}${A('Min VWAP volume',shares(i.min_vwap_volume_units)+' sh','units')}</div></div>
+    <div class="sec"><h3>Cap table</h3><div class="attrs">${A('Authorised',`<span class="num">${shares(i.shares_authorised_units)}</span>`,'units')}${A('In issue',`<span class="num">${shares(i.in_issue_units)}</span>`,'units')}${A('Treasury',`<span class="num">${shares(i.treasury_units)}</span>`,'units')}${A('Daily release',`<span class="num">${shares(i.daily_release_units)}</span>`,'units')}${A('Released today',`<span class="num">${shares(i.released_today_units)}</span>`,'units')}${A('Holders',int(i.holders),'members')}</div></div>
+    <div class="sec"><h3>Standing</h3><div class="attrs">${A('Halted',i.halted?chip(i.halt_reason,'red')+` <span class="muted">by ${esc(i.halted_by)} · ${esc(fmtTime(i.halted_at))}</span>`:chip('trading','green'),'halts',true)}${A('Block alerts',int(i.open_block_alerts),'surveillance')}${A('Incidents',int(i.open_incidents),'halts')}${A('Unpublished',int(i.unpublished_disclosures),'disclosures')}${A('Session today',i.session_state?chip(i.session_state)+(i.session_price_kobo?` <span class="num">${naira(i.session_price_kobo)}</span>`:''):'none','sessions')}</div></div></div>`;
+  const tabs=[['sessions','Sessions',d.sessions.length],['price','Price',d.prices.length],['gate','Liquidity gate',liq.passes?'':liq.failures.length],['mm','Market makers',d.providers.length],['related','Related parties',d.related_parties.length],['corp','Corporate actions',d.corporate_actions.length],['disc','Disclosures',d.disclosures.length],['holders','Holders',d.holders.length],['halts','Halts & alerts',d.halts.length+d.alerts.length],['cap','Cap table events',d.cap_table_events.length]];
+  state.tab = state.tab && tabs.some(t=>t[0]===state.tab) ? state.tab : 'sessions';
+  $('#content').innerHTML=`<div class="record"><div class="rec-h"><div class="tile lg">${esc(sym.slice(0,2))}</div><div class="name"><h1>${esc(sym)}</h1><div class="sub">${esc(i.legal_name)}${i.trading_name?' · '+esc(i.trading_name):''}</div><div class="chips">${chip(i.status)}${chip(i.clob_review_state)}${i.halted?chip('halted · '+i.halt_reason,'red'):chip('trading','green')}${i.session_state?chip('session '+i.session_state):''}${liq.passes?chip('meets liquidity standard','green'):''}</div></div></div>
+    <div class="rec" style="margin-top:14px;border-top:1px solid var(--hair)">${left}<div class="rec-main"><div class="tabs">${tabs.map(t=>`<button data-tab="${t[0]}" class="${state.tab===t[0]?'on':''}">${esc(t[1])}${t[2]!==''&&t[2]!=null?`<span class="cnt">${t[2]}</span>`:''}</button>`).join('')}</div><div class="tab-body" id="tab-body"></div></div></div></div>`;
+  $$('.tabs button').forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; $$('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); renderTab(); });
+  renderTab();
+}
+function renderTab(){
+  const d=state.data, i=d.instrument, el=$('#tab-body'); const liq=d.liquidity;
+  switch(state.tab){
+    case 'sessions': renderTable(Object.assign({},VIEWS.sessions,{columns:[{k:'session_date',l:'Session',t:'sym',h:v=>`<span class="num">${esc(v)}</span>`},...VIEWS.sessions.columns.slice(1)]}), d.sessions, {el, compact:true, onRow:r=>openPeek(VIEWS.sessions.peek(r))}); break;
+    case 'price': { const exs=d.corporate_actions.filter(c=>c.state!=='cancelled').map(c=>({x:c.ex_date,label:'ex '+title(c.kind)}));
+      el.innerHTML=`<div class="pad"><div class="chart" id="px"></div><div class="legend"><span><i></i>adjusted price, last ${d.prices.length} observations</span><span><i class="ex"></i>ex-date</span><span class="faint">endpoint ${d.prices.length?naira(d.prices[d.prices.length-1].adj_price_kobo)+' on '+d.prices[d.prices.length-1].obs_date:'—'}</span></div><div class="panel" style="margin-top:16px" id="px-tbl"></div></div>`;
+      lineChart($('#px'), d.prices.map(p=>({x:p.obs_date, y:p.adj_price_kobo/100, label:naira(p.adj_price_kobo)+' · '+title(p.source)+' · '+sharesC(p.adj_volume_units)+' sh'})), {fmt:v=>'₦'+v.toFixed(2), marks:exs});
+      renderTable({columns:[{k:'obs_date',l:'Date',t:'sym',h:v=>`<span class="num">${esc(v)}</span>`},{k:'source',l:'Source',t:'chip'},{k:'price_kobo',l:'Price',t:'kobo'},{k:'adj_price_kobo',l:'Adjusted',t:'kobo'},{k:'volume_units',l:'Volume',t:'units'},{k:'trade_count',l:'Trades',t:'num'}], empty:'No observations.'}, d.prices.slice().reverse(), {el:$('#px-tbl'), compact:true}); break; }
+    case 'gate': el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>${liq.passes?'Meets the standard':liq.failures.length+' of 9 criteria failing'}</h2><span class="muted">trailing ${liq.window} sessions as of ${esc(liq.as_of)} · ${i.clob_enabled?'trading continuously':'auction-only'}</span></div>
+      <div class="check"><div class="hd-row"></div><div class="hd-row">Criterion</div><div class="hd-row" style="justify-content:flex-end">Measured</div><div class="hd-row" style="justify-content:flex-end">Required</div>${liq.criteria.map(c=>{ const f=v=>c.kind==='kobo'?naira(v):c.kind==='bps'?bps(v):c.kind==='count'?int(v):esc(String(v)); const op=c.op==='<='?'≤ ':c.op==='>='?'≥ ':''; return `<div class="${c.met?'ok':'no'}">${ic(c.met?'check':'x')}</div><div>${esc(c.criterion)}</div><div class="num" style="justify-content:flex-end">${f(c.measured)}</div><div class="num muted" style="justify-content:flex-end">${op}${f(c.required)}${c.unit?' <span class="faint" style="margin-left:5px;font-family:Inter,sans-serif">'+esc(c.unit)+'</span>':''}</div>`; }).join('')}</div>
+      <p class="muted" style="margin-top:14px;font-size:12px">Every criterion is a count of distinct unrelated participants or a concentration limit, because those are the ones an issuer cannot satisfy by trading with itself. Graduation is reversible.</p></div>`; break;
+    case 'mm': { const spec=VIEWS['market-makers']; if(!d.providers.length){ el.innerHTML='<div class="empty">No designated market maker on this symbol.</div>'; break; }
+      el.innerHTML='<div class="pad">'+d.providers.map((p,k)=>`<div class="sec-h" style="margin-top:${k?22:0}px"><h2>${esc(p.member)}</h2><span class="muted">${esc(p.member_name)} · ${chip(p.state)} · uptime ${bps(p.uptime_bps)} over ${p.uptime_sessions} sessions · min ${naira(p.min_quote_kobo)} a side, spread ≤ ${bps(p.max_spread_bps)}</span></div><div class="panel" id="mm-${k}"></div>`).join('')+'</div>';
+      d.providers.forEach((p,k)=>renderTable({columns:[{k:'session_date',l:'Session',t:'sym',h:v=>`<span class="num">${esc(v)}</span>`},{k:'met',l:'Obligation',t:'bool',yes:'met',no:'not met',yesTone:'green',noTone:'red'},{k:'shortfall',l:'Shortfall',t:'text'},{k:'bid_kobo',l:'Bid',t:'kobo'},{k:'ask_kobo',l:'Ask',t:'kobo'},{k:'spread_bps',l:'Spread',t:'bps'},{k:'size_kobo',l:'Size',t:'kobo'},{k:'two_sided',l:'Two-sided',t:'bool'}], empty:'Not yet measured in any session.'}, p.recent, {el:$('#mm-'+k), compact:true})); break; }
+    case 'related': renderTable({columns:[{k:'group_key',l:'Group',t:'sym',h:v=>`<span class="mono">${esc(v)}</span>`},{k:'relation',l:'Relation',t:'chip',tone:'purple'},{k:'owner_name',l:'Owner',t:'text'},{k:'owner_type',l:'Owner type',t:'chip',tone:'gray'},{k:'account_kind',l:'Account',t:'text'},{k:'effective',l:'Effective',t:'mono',full:true},{k:'account_id',l:'Account id',t:'mono'}], empty:'No related parties recorded. The issuer, its treasury, directors, staff and the merchant should be here.'}, d.related_parties, {el, compact:true}); break;
+    case 'corp': renderTable(VIEWS['corporate-actions'], d.corporate_actions, {el, compact:true, onRow:r=>openPeek(VIEWS['corporate-actions'].peek(r))}); break;
+    case 'disc': renderTable(VIEWS.disclosures, d.disclosures, {el, compact:true, onRow:r=>openPeek(VIEWS.disclosures.peek(r))}); break;
+    case 'holders': renderTable({columns:[{k:'cardholder_ref',l:'Holder',t:'sym',h:v=>`<span class="mono">${esc(v)}</span>`},{k:'display_name',l:'Name',t:'text'},{k:'related',l:'Related',t:'bool',yes:'related party',no:'unrelated',yesTone:'purple',noTone:'gray'},{k:'units',l:'Units',t:'units'},{k:'locked_units',l:'Locked',t:'units'},{k:'cost_kobo',l:'Cost',t:'kobo'},{k:'lots',l:'Lots',t:'num'},{k:'first_acquired',l:'First acquired',t:'date'}], empty:'No holders yet.'}, d.holders, {el, compact:true}); break;
+    case 'halts': { el.innerHTML=`<div class="pad"><div class="sec-h" style="margin-top:0"><h2>Halts</h2></div><div class="panel" id="rh"></div><div class="sec-h"><h2>Alerts</h2><span class="muted">latest 20</span></div><div class="panel" id="ra"></div><div class="sec-h"><h2>Closed periods</h2></div><div class="panel" id="rcp"></div></div>`;
+      const hspec={columns:[{k:'reason',l:'Reason',t:'sym',h:v=>chip(v)},{k:'open',l:'State',t:'bool',yes:'open',no:'released',yesTone:'red',noTone:'gray'},{k:'raised_by',l:'Raised by',t:'text'},{k:'halted_at',l:'Halted',t:'time'},{k:'released_by',l:'Released by',t:'text'},{k:'released_at',l:'Released',t:'time'}], empty:'Never halted.'};
+      renderTable(hspec, d.halts, {el:$('#rh'), compact:true, onRow:r=>openPeek({title:title(r.reason), sub:'Halt '+r.id, chips:[r.open?chip('open','red'):chip('released','gray')], attrs: attrsFrom(hspec.columns, r), sections:[{title:'Detail', html:jsonBlock(r.detail)}], actions: r.open?haltActions(i.symbol,true):[]})});
+      renderTable(Object.assign({},VIEWS.surveillance,{columns:VIEWS.surveillance.columns.filter(c=>c.k!=='symbol')}), d.alerts, {el:$('#ra'), compact:true, onRow:r=>openPeek(VIEWS.surveillance.peek(r))});
+      renderTable({columns:[{k:'reason',l:'Reason',t:'sym',h:v=>chip(v)},{k:'period',l:'Period',t:'mono',full:true},{k:'declared_by',l:'Declared by',t:'text'},{k:'created_at',l:'Declared',t:'time'}], empty:'No closed periods.'}, d.closed_periods, {el:$('#rcp'), compact:true}); break; }
+    case 'cap': renderTable({columns:[{k:'id',l:'Event',t:'num',r:false,h:v=>`<span class="num">#${v}</span>`},{k:'kind',l:'Kind',t:'chip',tone:'gray'},{k:'units_delta',l:'Units',t:'units',h:v=>`<span class="num">${v>0?'+':''}${shares(v)}</span>`},{k:'note',l:'Note',t:'text'},{k:'ledger_tx_id',l:'Ledger tx',t:'mono'},{k:'occurred_at',l:'At',t:'time'}], empty:'No cap table events.'}, d.cap_table_events, {el, compact:true}); break;
+  }
+}
+
+// ---------- start ----------
+if(SS.get()) boot(); else { $('#signin').hidden=false; $('#si-name').focus(); }
+</script>
+</body>
+</html>

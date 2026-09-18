@@ -5,6 +5,12 @@
 
 BEGIN;
 
+-- closed_periods excludes overlapping ranges per instrument, which needs
+-- btree_gist. db/bootstrap.sql installs it locally; a hosted database that
+-- never ran bootstrap must get it here. Trusted since PG13, so the migrating
+-- role may install it, and IF NOT EXISTS makes this a no-op where it exists.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
 -- A detection with no case management is a log file. Alerts need an owner, a
 -- state, and a decision that someone put their name to.
 ALTER TABLE surveillance_alerts

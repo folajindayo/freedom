@@ -776,14 +776,19 @@ func listAnother(t *testing.T, p *pgxpool.Pool, n *network, symbol string,
 	assetID := ledger.EquityAsset(symbol)
 	mustExec(t, p, `INSERT INTO assets (id,class,scale,label) VALUES ($1,'equity',8,$2)
 	                ON CONFLICT DO NOTHING`, assetID, symbol)
+	// Its own company: a company has one live instrument.
+	var companyID string
+	if err := p.QueryRow(ctx, `INSERT INTO companies (legal_name) VALUES ($1) RETURNING id`,
+		symbol+" Ltd").Scan(&companyID); err != nil {
+		t.Fatal(err)
+	}
 	mustExec(t, p, `
 		INSERT INTO instruments (id, symbol, company_id, shares_authorised_units,
 		                         reference_price_kobo, status, listed_at)
 		VALUES ($1,$2,$3,$4,$5,'listed',now())`,
-		assetID, symbol, n.companyID, int64(share.Whole(1_000_000)), int64(price))
+		assetID, symbol, companyID, int64(share.Whole(1_000_000)), int64(price))
 	mustExec(t, p, `
 		INSERT INTO cap_table_events (instrument_id, kind, units_delta, note)
 		VALUES ($1,'authorised',$2,'listing')`, assetID, int64(issued))
-	_ = ctx
 	return assetID
 }

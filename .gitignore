@@ -7,3 +7,4 @@
 /apps/pos/build/
 /apps/pos/.dart_tool/
 .DS_Store
+/apps/api/exchanged

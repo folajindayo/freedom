@@ -63,9 +63,14 @@ apps/api/                       one Go module, one binary per service
     registrar/                  transfer agent, holding statements
     cashrail/                   NIBSS deposits and withdrawals
     institution/                disclosure, index, protection fund, complaints
+    rail/                       the Tapp door: onboarding = listing, taps → clearing → buyback
+    rail/httpapi/               /v1/rail/* behind RAIL_TOKEN, and the daily close
+    console/                    the operations console: /console (one embedded page) + /console/api/*
     migrate/sql/                embedded schema
     e2e/                        the whole rail, end to end
+  cmd/exchanged/                the one binary: exchange API + rail API + console + close scheduler
 docs/SECURITY.md                threat model, and what is NOT defended
+docs/INTEGRATION.md             the Freedom ⇄ Tapp contract
 ```
 
 ## Running it
@@ -75,10 +80,29 @@ make db      # database + the two Postgres roles
 make test    # everything
 make e2e     # just the golden path, verbosely
 make check   # what CI runs
+make run     # exchanged on :8081, rail and console mounted, scheduler off
 ```
+
+With `make run` up, the console is at <http://localhost:8081/console>. It asks
+for your name and the console token once (`dev-console-token` under `make run`)
+and keeps both in the browser; every action it takes is recorded against that
+name. It reads the live database — instruments, sessions, orders, fills,
+surveillance, halts, the buyback, settlement, reconciliation, disclosures,
+the calendar, the index, complaints and the clock — and its few writes
+(market close, halt and release, alert triage and close, publish a disclosure,
+graduate or demote through the liquidity gate, the member kill switch) call the
+same engine functions the tests exercise. A session still accepting orders
+shows only its order count: the book is dark by design.
 
 Requires Go 1.26 and Postgres 15. Docker is a fallback if no local Postgres is
 listening.
+
+`exchanged` reads `DATABASE_URL`, `PORT` (default 8081), `RAIL_TOKEN`
+(required — the bearer Tapp presents on `/v1/rail/*`; the server does not start
+without it), `CONSOLE_TOKEN` (required for the same reason — the console can
+halt a symbol and run the close) and `MARKET_CLOSE_AT` (`HH:MM` Africa/Lagos,
+default `12:00`; `off` disables the in-process daily close, for tests and
+second replicas).
 
 ## Design decisions worth knowing before you read the code
 
@@ -148,8 +172,17 @@ unwind the 120-day lock exists to make possible, designated market makers with
 per-session obligations that are actually measured, net settlement with debit
 caps, and listing admission against the rulebook.
 
-Not built: FIX connectivity, the softPOS app, and the consoles.
+And the door to a real card rail: `/v1/rail` lets Tapp register a merchant's
+business (a listing application against the rulebook), deliver charged taps
+(a presentment funded by Tapp as issuer-and-acquirer, cleared, split, bought
+back), reverse them (the chargeback unwind, without the dispute), and read a
+cardholder's holdings. The contract is `docs/INTEGRATION.md`.
+
+Not built: FIX connectivity, the softPOS app, the member and issuer consoles,
+and selling from the Tapp app (order entry still needs a member and a client
+account). The operations console is built: `/console`.
 
 `docs/SECURITY.md` §10 lists the security gaps, `docs/CONTINUITY.md` §7 the
-operational ones, and `docs/LISTING-RULES.md` §8 the questions for counsel —
-one of which is worth ₦5bn.
+operational ones, and `docs/REGULATORY.md` the licences, their capital after
+SEC Circular 26-1, and the questions for counsel — one of which is worth ₦5bn
+and one of which decides whether a private shop can be listed at all.

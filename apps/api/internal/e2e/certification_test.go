@@ -36,7 +36,7 @@ func TestCertificationSuite(t *testing.T) {
 	var sandbox string
 	mustTx(t, p, func(tx pgx.Tx) error {
 		var err error
-		sandbox, err = exchange.SandboxInstrument(ctx, tx, n.companyID, "CERTX")
+		sandbox, err = exchange.SandboxInstrument(ctx, tx, "CERTX")
 		return err
 	})
 	if sandbox == "" {
