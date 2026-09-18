@@ -285,15 +285,19 @@ turns one mis-keyed batch into a mass lockout.
 
 ## 9. Regulatory surface
 
-Two live surfaces beyond the bank licence:
+The full map — every regulated function, the licence it needs, what that
+licence costs after SEC Circular 26-1, and the recurring obligations — is
+`docs/REGULATORY.md`. The short version:
 
-- **CBN** — switching and PoS acceptance. Also sets the merchant service charge
-  (the 0.5%/₦1,000-cap shape in `fee.SchemeV1`); **verify the current figure
-  against the CBN Guide to Charges before go-live.** It is a regulated number,
-  not a commercial choice, and it moves.
-- **SEC Nigeria** — operating an exchange and acting as a registrar. The buyback
-  distributes securities, which makes disclosure, suitability, lock-ups and
-  per-lot cost basis data requirements rather than features.
+- **CBN** — switching, PSS, and the merchant service charge. The Guide to
+  Charges effective 1 May 2026 sets MSC at 0.5% **capped at ₦10,000** on every
+  channel; `fee.SchemeV1` still carries the 2020 ₦1,000 cap. Contactless taps
+  above ₦15,000 per transaction or ₦50,000 per day require cardholder
+  verification.
+- **SEC Nigeria** — non-composite securities exchange (₦5bn from 30 June 2027),
+  and the settlement layer as a financial market infrastructure. Every listed
+  issuer must be a public company with SEC-registered securities (ISA 2025
+  s.95).
 
 Build-in requirements already present: append-only audit trail, BVN/NIN capture,
 disclosure acceptance recorded with its version, holding lots with cost basis

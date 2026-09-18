@@ -203,20 +203,16 @@ function from the trading function. It should not be waved away.
 
 ## 8. Open questions for counsel
 
-1. Does an internal DVP inside a nominee structure constitute "clearing and
-   settlement" requiring the ₦5bn licence, or does the nominee's ₦5m suffice?
-   **₦5bn turns on this answer.**
-2. Does a buyback-funded share allocation constitute a distribution of
-   securities requiring a prospectus, or a loyalty benefit?
-3. Is the treasury release a primary issuance each time, requiring approval, or
-   a single authorised programme?
-4. What is the correct tax treatment of shares received by a cardholder — a
-   benefit in kind, or an acquisition at cost?
-5. Do the ISA 2025 non-composite provisions permit an operator to sponsor
-   listings on its own venue, and under what conditions?
+Superseded by `docs/REGULATORY.md` §9, which re-orders these against the
+Act's text and adds the two that matter most: that every listed issuer must be
+a **public company with SEC-registered securities** (ISA 2025 s.95, s.97(1)(d))
+— which §2.1 above does not yet require — and that the internal DVP is a
+securities settlement system by the Act's own definition (s.357), so the ₦5bn
+question is about *which* registration, not whether one is needed.
 
 ---
 
-*Cross-references: `docs/SECURITY.md` for market integrity controls;
+*Cross-references: `docs/REGULATORY.md` for licences, capital and counsel questions;
+`docs/SECURITY.md` for market integrity controls;
 `internal/exchange/graduation.go` for the liquidity gate as implemented;
 `internal/institution/` for disclosure, complaints and investor protection.*
