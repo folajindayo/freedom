@@ -114,6 +114,13 @@ func (s *Service) closeOne(ctx context.Context, tx pgx.Tx, row *CloseRow, sessio
 		// buyback will refuse and escrow, which is the recorded outcome.
 	default:
 		sess, err := s.Engine.Open(ctx, tx, row.InstrumentID, sessionDate)
+		if errors.Is(err, exchange.ErrMarketClosed) {
+			// Not a trading day. There is no session to run, but the buyback
+			// still is: the engine prices a session-less date at the carried
+			// reference, so a weekend's taps do not wait for Monday.
+			row.State = "no_session"
+			return s.runBuyback(ctx, tx, row, sessionDate)
+		}
 		if err != nil {
 			return err
 		}
@@ -139,12 +146,19 @@ func (s *Service) closeOne(ctx context.Context, tx pgx.Tx, row *CloseRow, sessio
 		row.MatchedUnits = share.Units(*matched)
 	}
 
-	// Escrowed intents are funding already held for a price we refused to
-	// stand behind (halt, thin VWAP, band). The engine escrows but nothing in
-	// it retries, so the close is the retry: put them back to pending and let
-	// RunSession price them or escrow them again against today's reason.
-	// Only the state flips; the intents table has no reason column, and the
-	// refusal is reported on this row instead.
+	return s.runBuyback(ctx, tx, row, sessionDate)
+}
+
+// runBuyback retries escrowed intents and runs the buyback for one
+// instrument, recording the outcome on the close row.
+//
+// Escrowed intents are funding already held for a price we refused to stand
+// behind (halt, thin VWAP, band). The engine escrows but nothing in it
+// retries, so the close is the retry: put them back to pending and let
+// RunSession price them or escrow them again against today's reason. Only
+// the state flips; the intents table has no reason column, and the refusal
+// is reported on this row instead.
+func (s *Service) runBuyback(ctx context.Context, tx pgx.Tx, row *CloseRow, sessionDate string) error {
 	ct, err := tx.Exec(ctx, `
 		UPDATE buyback_intents SET state = 'pending'
 		 WHERE instrument_id = $1 AND state = 'escrowed'`, row.InstrumentID)

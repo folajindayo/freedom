@@ -893,3 +893,39 @@ func TestCloseMarketRetriesEscrowedIntents(t *testing.T) {
 		t.Errorf("wallet = %s, want 0.125", share.Units(got))
 	}
 }
+
+// A Friday-evening tap lands on Saturday's business date, which has no
+// session. It must not wait until Monday: the engine prices a session-less
+// date at the carried reference, and the rail runs the buyback at ingest.
+func TestIngestTapOnANonTradingDayAllocatesAtTheReference(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	s := newService(t, p)
+
+	sym := symbol()
+	if _, _, err := s.OnboardBusiness(ctx, mamaPut(sym, "sp_mama", "usr_founder")); err != nil {
+		t.Fatal(err)
+	}
+	// Saturday 19 September 2026, no session on the calendar.
+	s.Now = func() time.Time { return time.Date(2026, 9, 19, 9, 0, 0, 0, scheme.Lagos) }
+
+	r, _, err := s.IngestTap(ctx, tap("tap_sat", "sp_mama", "usr_ada", money.Naira(10_000)))
+	if err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
+	if r.IntentState != "allocated" || r.PriceKobo != 4000 || r.AllocatedUnits != 12_500_000 {
+		t.Fatalf("saturday tap: state %s price %d units %d, want allocated 0.125 at ₦40",
+			r.IntentState, r.PriceKobo, r.AllocatedUnits)
+	}
+
+	// And the close on that date runs the buyback without a session.
+	rows, err := s.CloseMarket(ctx, "2026-09-19")
+	if err != nil {
+		t.Fatalf("close on a saturday: %v", err)
+	}
+	for _, row := range rows {
+		if row.Symbol == sym && (row.State != "no_session" || row.Error != "") {
+			t.Fatalf("saturday close row: %+v", row)
+		}
+	}
+}

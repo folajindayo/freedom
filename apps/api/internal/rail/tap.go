@@ -147,10 +147,11 @@ func (s *Service) clear(ctx context.Context, tx pgx.Tx, today string) error {
 	return err
 }
 
-// allocateIfPriced runs the buyback for the tap's instrument when today's
-// session has published. Before that, the intent stays pending for the close
-// to pick up: RunSession would otherwise escrow it for want of a price, and an
-// escrowed intent waits for the next close to be retried.
+// allocateIfPriced runs the buyback for the tap's instrument unless today's
+// session exists and has not yet published — then the intent stays pending
+// for the close, because RunSession would escrow it for want of a price. A
+// date with no session at all (a weekend, the evening after cutover) is
+// priced by the engine at the carried reference, so the buyback runs now.
 func (s *Service) allocateIfPriced(ctx context.Context, tx pgx.Tx, presentmentID uuid.UUID, today string) error {
 	var instrumentID *string
 	err := tx.QueryRow(ctx,
@@ -161,14 +162,15 @@ func (s *Service) allocateIfPriced(ctx context.Context, tx pgx.Tx, presentmentID
 	if err != nil {
 		return fmt.Errorf("rail: load intent: %w", err)
 	}
-	var published bool
+	var forming bool
 	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM auctions
-		                WHERE instrument_id = $1 AND session_date = $2::date AND state = 'published')`,
-		*instrumentID, today).Scan(&published); err != nil {
+		                WHERE instrument_id = $1 AND session_date = $2::date
+		                  AND state NOT IN ('published','halted','cancelled'))`,
+		*instrumentID, today).Scan(&forming); err != nil {
 		return fmt.Errorf("rail: session check: %w", err)
 	}
-	if !published {
+	if forming {
 		return nil
 	}
 	_, err = s.Buyback.RunSession(ctx, tx, *instrumentID, today)
