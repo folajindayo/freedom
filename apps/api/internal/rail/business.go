@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/google/uuid"
@@ -351,9 +352,18 @@ func (s *Service) listingFor(ctx context.Context, q ledger.Querier, merchantRef 
 // Business is a listing with its cap table.
 type Business struct {
 	Listing
-	SharesAuthorised    share.Units     `json:"shares_authorised"`
-	InIssue             share.Units     `json:"in_issue"`
-	TreasuryRemaining   share.Units     `json:"treasury_remaining"`
+	SharesAuthorised share.Units `json:"shares_authorised"`
+	// InIssue is the company's shares in issue as declared at admission.
+	// OnRegister is the part of them held in Freedom stock wallets — the
+	// founders' lots and everything taps have bought.
+	InIssue           share.Units `json:"in_issue"`
+	OnRegister        share.Units `json:"on_register"`
+	TreasuryRemaining share.Units `json:"treasury_remaining"`
+	// PriceKobo is the price the company is valued at: the last published
+	// session's price, which on a zero-volume day is the carried reference.
+	// MarketCapKobo is InIssue at that price, computed exactly.
+	PriceKobo           money.Kobo      `json:"price_kobo"`
+	MarketCapKobo       money.Kobo      `json:"market_cap_kobo"`
 	ReleasedToday       share.Units     `json:"released_today"`
 	DailyReleaseUnits   share.Units     `json:"daily_release_units"`
 	Holders             int             `json:"holders"`
@@ -447,14 +457,23 @@ func (s *Service) GetBusiness(ctx context.Context, merchantRef string) (Business
 			SELECT COUNT(DISTINCT l.account_id), COALESCE(SUM(l.units_open), 0)::bigint
 			  FROM holding_lots l JOIN accounts a ON a.id = l.account_id
 			 WHERE l.instrument_id = $1 AND a.kind = 'stock_wallet' AND l.units_open > 0`, inst).
-			Scan(&b.Holders, &b.InIssue); err != nil {
+			Scan(&b.Holders, &b.OnRegister); err != nil {
 			return fmt.Errorf("rail: holder count: %w", err)
+		}
+		if err := tx.QueryRow(ctx, `SELECT shares_in_issue_units FROM instruments WHERE id = $1`, inst).
+			Scan(&b.InIssue); err != nil {
+			return fmt.Errorf("rail: shares in issue: %w", err)
 		}
 
 		b.LastSession, err = lastSession(ctx, tx, inst)
 		if err != nil {
 			return err
 		}
+		b.PriceKobo = l.ReferencePriceKobo
+		if b.LastSession != nil && b.LastSession.PriceKobo > 0 {
+			b.PriceKobo = b.LastSession.PriceKobo
+		}
+		b.MarketCapKobo = valueOf(b.InIssue, b.PriceKobo)
 		b.Halted, err = haltOf(ctx, tx, inst)
 		return err
 	})
@@ -623,6 +642,12 @@ func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req Busine
 	if err != nil {
 		return out, err
 	}
+	// The declared share count is what the company is valued on. It was
+	// assessed for the float; keep it on the instrument (migration 0016).
+	if _, err := tx.Exec(ctx, `UPDATE instruments SET shares_in_issue_units = $2 WHERE id = $1`,
+		instrumentID, req.Evidence.SharesInIssue); err != nil {
+		return out, fmt.Errorf("rail: record shares in issue: %w", err)
+	}
 	if err := s.seedTreasury(ctx, tx, id, companyID, instrumentID, assessed.ProposedSymbol,
 		share.Units(req.Evidence.TreasuryUnits), share.Units(req.DailyReleaseUnits), today); err != nil {
 		return out, err
@@ -682,4 +707,14 @@ func (s *Service) renameApplication(ctx context.Context, tx pgx.Tx, app uuid.UUI
 		return fmt.Errorf("rail: rename application: %w", err)
 	}
 	return nil
+}
+
+// valueOf is units at a price, in kobo: units × price / 1e8, exact in the
+// intermediate so a large issuer at a high price does not wrap.
+func valueOf(units share.Units, price money.Kobo) money.Kobo {
+	if units <= 0 || price <= 0 {
+		return 0
+	}
+	n := new(big.Int).Mul(big.NewInt(int64(units)), big.NewInt(int64(price)))
+	return money.Kobo(n.Quo(n, big.NewInt(int64(share.PerShare))).Int64())
 }

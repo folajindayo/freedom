@@ -208,8 +208,10 @@ const instrumentSelect = `
 	       tp.daily_release_units,
 	       COALESCE((SELECT balance FROM account_balances b WHERE b.account_id = tp.account_id), 0)::bigint AS treasury_units,
 	       COALESCE((SELECT units FROM treasury_releases tr WHERE tr.instrument_id = i.id AND tr.session_date = $1::date), 0)::bigint AS released_today_units,
+	       i.shares_in_issue_units AS in_issue_units,
 	       (SELECT COALESCE(SUM(l.units_open),0) FROM holding_lots l JOIN accounts a ON a.id = l.account_id
-	         WHERE l.instrument_id = i.id AND a.kind = 'stock_wallet')::bigint AS in_issue_units,
+	         WHERE l.instrument_id = i.id AND a.kind = 'stock_wallet')::bigint AS on_register_units,
+	       (i.shares_in_issue_units::numeric * i.reference_price_kobo / 100000000)::bigint AS market_cap_kobo,
 	       (SELECT COUNT(DISTINCT l.account_id) FROM holding_lots l JOIN accounts a ON a.id = l.account_id
 	         WHERE l.instrument_id = i.id AND a.kind = 'stock_wallet' AND l.units_open > 0)::int AS holders,
 	       h.reason AS halt_reason, h.halted_at, h.raised_by AS halted_by, (h.id IS NOT NULL) AS halted,
