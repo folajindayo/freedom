@@ -135,6 +135,10 @@ type Evidence struct {
 }
 
 // Assess measures an application against the criteria and records each finding.
+//
+// It also reopens a rejected application: new evidence puts it back into
+// review with fresh findings, and only then can it be admitted or rejected
+// again. A decision is never revisited without something new to look at.
 func Assess(ctx context.Context, tx pgx.Tx, applicationID uuid.UUID, c Criteria, e Evidence) (Application, error) {
 	var a Application
 	a.ID = applicationID

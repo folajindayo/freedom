@@ -114,14 +114,30 @@ func (s *Service) OnboardBusiness(ctx context.Context, req BusinessRequest) (out
 			return err
 		}
 
-		// A merchant that already applied gets its record back, whatever the
-		// outcome was. The doc's contract: a second call is a read.
+		// A merchant that already applied gets its record back — a retry must
+		// not lodge a second application — with one exception. A rejected
+		// applicant is expected to come back with better evidence; the
+		// rulebook says what was missing precisely so that they can. That
+		// resubmission re-assesses the SAME application: the findings are
+		// rewritten, and it is admitted or refused again on what it says now.
 		existing, err := s.listingFor(ctx, tx, req.MerchantRef)
-		if err == nil {
+		if err == nil && (existing.State != "rejected" || existing.InstrumentID != nil) {
 			out = existing
 			return nil
 		}
-		if !errors.Is(err, ErrNotFound) {
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return err
+		}
+		if err == nil {
+			appID, companyID, merchantID, err := s.rejectedApplication(ctx, tx, req.MerchantRef)
+			if err != nil {
+				return err
+			}
+			if err := s.renameApplication(ctx, tx, appID, req.Symbol); err != nil {
+				return err
+			}
+			out, err = s.decide(ctx, tx, id, req, appID, companyID, merchantID, today)
+			created = true
 			return err
 		}
 
@@ -151,72 +167,9 @@ func (s *Service) OnboardBusiness(ctx context.Context, req BusinessRequest) (out
 		if err != nil {
 			return err
 		}
-		assessed, err := exchange.Assess(ctx, tx, app, exchange.StandardCriteria(), exchange.Evidence{
-			TradingMonths:   req.Evidence.TradingMonths,
-			AuditedAccounts: req.Evidence.AuditedAccounts,
-			AuditorOnList:   req.Evidence.AuditorOnList,
-			SharesInIssue:   share.Units(req.Evidence.SharesInIssue),
-			PublicShares:    share.Units(req.Evidence.PublicShares),
-			Holders:         req.Evidence.Holders,
-			TreasuryUnits:   share.Units(req.Evidence.TreasuryUnits),
-			BoardResolution: req.Evidence.BoardResolution,
-			DirectorsClear:  req.Evidence.DirectorsClear,
-		})
-		if err != nil {
-			return err
-		}
-		out = Listing{
-			MerchantRef:        req.MerchantRef,
-			Symbol:             assessed.ProposedSymbol,
-			Findings:           assessed.Findings,
-			ReferencePriceKobo: money.Kobo(req.ReferencePriceKobo),
-		}
+		out, err = s.decide(ctx, tx, id, req, app, companyID, merchantID, today)
 		created = true
-
-		if !assessed.Passes() {
-			var short []string
-			for _, f := range assessed.Findings {
-				if !f.Met {
-					short = append(short, f.Criterion)
-				}
-			}
-			if err := exchange.Reject(ctx, tx, app, "rail", "unmet: "+strings.Join(short, ", ")); err != nil {
-				return err
-			}
-			out.State = "rejected"
-			return nil
-		}
-
-		instrumentID, err := exchange.AdmitListing(ctx, tx, assessed, money.Kobo(req.ReferencePriceKobo),
-			share.Units(req.SharesAuthorisedUnits), share.Units(req.DailyReleaseUnits), "rail")
-		if err != nil {
-			return err
-		}
-		if err := s.seedTreasury(ctx, tx, id, companyID, instrumentID, assessed.ProposedSymbol,
-			share.Units(req.Evidence.TreasuryUnits), share.Units(req.DailyReleaseUnits), today); err != nil {
-			return err
-		}
-		for _, h := range req.Holders {
-			if err := s.distributeFounder(ctx, tx, id, companyID, instrumentID, assessed.ProposedSymbol,
-				h.CardholderRef, share.Units(h.Units), h.Label, today); err != nil {
-				return err
-			}
-		}
-
-		// The listings pipeline pays out: funding that accrued against this
-		// merchant while it was unlisted now has an instrument to buy, and
-		// the next session's buyback picks it up like any other intent.
-		if _, err := tx.Exec(ctx, `
-			UPDATE buyback_intents SET instrument_id = $2, state = 'pending'
-			 WHERE merchant_id = $1 AND instrument_id IS NULL AND state = 'escrowed'`,
-			merchantID, instrumentID); err != nil {
-			return fmt.Errorf("rail: adopt escrowed intents: %w", err)
-		}
-
-		out.State = "listed"
-		out.InstrumentID = &instrumentID
-		out.TreasuryUnits = share.Units(req.Evidence.TreasuryUnits) - distributed
-		return nil
+		return err
 	})
 	return out, created, err
 }
@@ -623,4 +576,110 @@ func haltOf(ctx context.Context, q ledger.Querier, instrumentID string) (HaltVie
 	}
 	h.Halted = true
 	return h, nil
+}
+
+// decide assesses an application against the standard and either admits it
+// — instrument, treasury, founders' lots, adoption of escrowed funding — or
+// records the refusal with what was unmet. First applications and
+// resubmissions share it, so the two cannot drift.
+func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req BusinessRequest,
+	app, companyID, merchantID uuid.UUID, today string) (out Listing, err error) {
+	assessed, err := exchange.Assess(ctx, tx, app, exchange.StandardCriteria(), exchange.Evidence{
+		TradingMonths:   req.Evidence.TradingMonths,
+		AuditedAccounts: req.Evidence.AuditedAccounts,
+		AuditorOnList:   req.Evidence.AuditorOnList,
+		SharesInIssue:   share.Units(req.Evidence.SharesInIssue),
+		PublicShares:    share.Units(req.Evidence.PublicShares),
+		Holders:         req.Evidence.Holders,
+		TreasuryUnits:   share.Units(req.Evidence.TreasuryUnits),
+		BoardResolution: req.Evidence.BoardResolution,
+		DirectorsClear:  req.Evidence.DirectorsClear,
+	})
+	if err != nil {
+		return out, err
+	}
+	out = Listing{
+		MerchantRef:        req.MerchantRef,
+		Symbol:             assessed.ProposedSymbol,
+		Findings:           assessed.Findings,
+		ReferencePriceKobo: money.Kobo(req.ReferencePriceKobo),
+	}
+	if !assessed.Passes() {
+		var short []string
+		for _, f := range assessed.Findings {
+			if !f.Met {
+				short = append(short, f.Criterion)
+			}
+		}
+		if err := exchange.Reject(ctx, tx, app, "rail", "unmet: "+strings.Join(short, ", ")); err != nil {
+			return out, err
+		}
+		out.State = "rejected"
+		return out, nil
+	}
+
+	instrumentID, err := exchange.AdmitListing(ctx, tx, assessed, money.Kobo(req.ReferencePriceKobo),
+		share.Units(req.SharesAuthorisedUnits), share.Units(req.DailyReleaseUnits), "rail")
+	if err != nil {
+		return out, err
+	}
+	if err := s.seedTreasury(ctx, tx, id, companyID, instrumentID, assessed.ProposedSymbol,
+		share.Units(req.Evidence.TreasuryUnits), share.Units(req.DailyReleaseUnits), today); err != nil {
+		return out, err
+	}
+	for _, h := range req.Holders {
+		if err := s.distributeFounder(ctx, tx, id, companyID, instrumentID, assessed.ProposedSymbol,
+			h.CardholderRef, share.Units(h.Units), h.Label, today); err != nil {
+			return out, err
+		}
+	}
+
+	// The listings pipeline pays out: funding that accrued against this
+	// merchant while it was unlisted now has an instrument to buy, and
+	// the next session's buyback picks it up like any other intent.
+	if _, err := tx.Exec(ctx, `
+			UPDATE buyback_intents SET instrument_id = $2, state = 'pending'
+			 WHERE merchant_id = $1 AND instrument_id IS NULL AND state = 'escrowed'`,
+		merchantID, instrumentID); err != nil {
+		return out, fmt.Errorf("rail: adopt escrowed intents: %w", err)
+	}
+
+	var distributed share.Units
+	for _, h := range req.Holders {
+		distributed += share.Units(h.Units)
+	}
+	out.State = "listed"
+	out.InstrumentID = &instrumentID
+	out.TreasuryUnits = share.Units(req.Evidence.TreasuryUnits) - distributed
+	return out, nil
+}
+
+// rejectedApplication finds the application a resubmission re-opens.
+func (s *Service) rejectedApplication(ctx context.Context, tx pgx.Tx, merchantRef string) (app, company, merchant uuid.UUID, err error) {
+	err = tx.QueryRow(ctx, `
+		SELECT a.id, a.company_id, a.merchant_id
+		  FROM merchants m JOIN listing_applications a ON a.merchant_id = m.id
+		 WHERE m.external_ref = $1 AND a.state = 'rejected'
+		 ORDER BY a.created_at DESC LIMIT 1`, merchantRef).Scan(&app, &company, &merchant)
+	if err != nil {
+		return app, company, merchant, fmt.Errorf("rail: load rejected application: %w", err)
+	}
+	return app, company, merchant, nil
+}
+
+// renameApplication lets a resubmission change the proposed symbol. The
+// symbol is unique across applications, so a taken one is refused by name.
+func (s *Service) renameApplication(ctx context.Context, tx pgx.Tx, app uuid.UUID, symbol string) error {
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	if symbol == "" {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `UPDATE listing_applications SET proposed_symbol = $2 WHERE id = $1`, app, symbol)
+	if err != nil && strings.Contains(err.Error(), "23505") {
+		return fmt.Errorf("%w: symbol %s is already applied for by another business", ErrInvalid, symbol)
+	}
+	if err != nil {
+		return fmt.Errorf("rail: rename application: %w", err)
+	}
+	return nil
 }

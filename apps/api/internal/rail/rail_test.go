@@ -301,8 +301,43 @@ func TestOnboardRejectsAFailingBusiness(t *testing.T) {
 	if n != 0 {
 		t.Error("a rejected business got an instrument")
 	}
+	// The same evidence again is the same answer, with the reason refreshed.
 	if got, _, err := s.OnboardBusiness(ctx, req); err != nil || got.State != "rejected" {
 		t.Fatalf("replay of a rejection: %+v %v", got, err)
+	}
+	if err := p.QueryRow(ctx, `SELECT COUNT(*) FROM listing_applications WHERE merchant_id =
+	    (SELECT id FROM merchants WHERE external_ref = 'sp_young')`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("applications = %d, want the one re-decided, not a second", n)
+	}
+
+	// Two years later the evidence is there. The resubmission re-assesses the
+	// same application and admits it: instrument, treasury, the founder's lot.
+	req.Evidence.TradingMonths = 30
+	l, created, err = s.OnboardBusiness(ctx, req)
+	if err != nil {
+		t.Fatalf("resubmit: %v", err)
+	}
+	if !created || l.State != "listed" || l.InstrumentID == nil {
+		t.Fatalf("after resubmission state = %s instrument = %v", l.State, l.InstrumentID)
+	}
+	var state string
+	if err := p.QueryRow(ctx, `SELECT state FROM listing_applications WHERE proposed_symbol = $1`,
+		req.Symbol).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "listed" {
+		t.Errorf("application state = %s, want listed", state)
+	}
+	h, err := s.Holdings(ctx, "usr_young")
+	if err != nil || len(h.Holdings) != 1 || h.Holdings[0].Units != share.Units(req.Holders[0].Units) {
+		t.Fatalf("founder holdings after resubmission: %+v %v", h, err)
+	}
+	// And once listed, a further call is a read again.
+	if got, created, err := s.OnboardBusiness(ctx, req); err != nil || created || got.State != "listed" {
+		t.Fatalf("call after listing: created=%v %+v %v", created, got, err)
 	}
 }
 
