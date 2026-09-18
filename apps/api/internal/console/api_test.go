@@ -19,6 +19,7 @@ import (
 	"freedom/api/internal/institution"
 	"freedom/api/internal/migrate"
 	"freedom/api/internal/money"
+	"freedom/api/internal/public"
 	"freedom/api/internal/rail"
 	"freedom/api/internal/scheme"
 )
@@ -83,6 +84,7 @@ func randHex(n int) string {
 type client struct {
 	srv *httptest.Server
 	svc *rail.Service
+	s   *Server
 }
 
 func newClient(t *testing.T, p *pgxpool.Pool) *client {
@@ -97,7 +99,7 @@ func newClient(t *testing.T, p *pgxpool.Pool) *client {
 	s.Now = svc.Now
 	srv := httptest.NewServer(s.Routes())
 	t.Cleanup(srv.Close)
-	return &client{srv: srv, svc: svc}
+	return &client{srv: srv, svc: svc, s: s}
 }
 
 func (c *client) do(t *testing.T, method, path string, body any, token, by string) (int, map[string]any) {
@@ -148,7 +150,9 @@ func mamaPut(symbol string) rail.BusinessRequest {
 	r.Evidence.SharesInIssue, r.Evidence.PublicShares = 800_000_000_000_000, 120_000_000_000_000
 	r.Evidence.Holders, r.Evidence.TreasuryUnits = 31, 180_000_000_000_000
 	r.Evidence.BoardResolution, r.Evidence.DirectorsClear = true, true
-	r.ReferencePriceKobo, r.SharesAuthorisedUnits, r.DailyReleaseUnits = 4000, 1_000_000_000_000_000, 50_000_000_000_000
+	// (₦80m + 1.0 × ₦240m) / 8,000,000 shares: the exchange lists it at ₦40.
+	r.Evidence.NetAssetsKobo, r.Evidence.RevenueKobo = 8_000_000_000, 24_000_000_000
+	r.SharesAuthorisedUnits, r.DailyReleaseUnits = 1_000_000_000_000_000, 50_000_000_000_000
 	r.Holders = append(r.Holders, struct {
 		CardholderRef string `json:"cardholder_ref"`
 		Units         int64  `json:"units"`
@@ -494,5 +498,93 @@ func TestConsoleSetsSharesInIssue(t *testing.T) {
 	}
 	if !strings.Contains(note, "ngozi") || !strings.Contains(note, "declared at admission") {
 		t.Errorf("cap table event note = %q, want the operator and the reason", note)
+	}
+}
+
+// A listing admitted before the pricing rule is re-anchored under it: the
+// reference becomes fair value over the shares in issue, as a manual
+// observation, on the application, and in what the public sees.
+func TestConsoleReanchorsTheListingPrice(t *testing.T) {
+	p := pool(t)
+	c := newClient(t, p)
+	sym := seed(t, c)
+	const tok = "console-secret"
+	ctx := context.Background()
+	body := map[string]any{"net_assets_kobo": 2_000_000_000, "revenue_kobo": 6_000_000_000, "reason": "listed before the pricing rule"}
+
+	if status, _ := c.do(t, "POST", "/api/instruments/"+sym+"/reanchor",
+		map[string]any{"net_assets_kobo": 2_000_000_000, "revenue_kobo": 6_000_000_000, "reason": ""}, tok, "ngozi"); status != http.StatusBadRequest {
+		t.Fatalf("no reason: status %d, want 400", status)
+	}
+	// The seeded listing declared 8,000,000 shares; clear it to prove the
+	// refusal, then set the count the example is priced on.
+	if _, err := p.Exec(ctx, `UPDATE instruments SET shares_in_issue_units = 0 WHERE symbol = $1`, sym); err != nil {
+		t.Fatal(err)
+	}
+	if status, b := c.do(t, "POST", "/api/instruments/"+sym+"/reanchor", body, tok, "ngozi"); status != http.StatusUnprocessableEntity {
+		t.Fatalf("no shares in issue: status %d %v, want 422", status, b)
+	}
+	if status, b := c.do(t, "POST", "/api/instruments/"+sym+"/shares-in-issue",
+		map[string]any{"units": 1_000_000_000_000_000, "reason": "declared at admission"}, tok, "ngozi"); status != http.StatusOK {
+		t.Fatalf("shares in issue: %d %v", status, b)
+	}
+
+	status, row := c.do(t, "POST", "/api/instruments/"+sym+"/reanchor", body, tok, "ngozi")
+	if status != http.StatusOK || row["reference_price_kobo"] != float64(800) || row["carry_forward_sessions"] != float64(0) {
+		t.Fatalf("re-anchor: %d %v", status, row)
+	}
+	var source string
+	var price, volume int64
+	if err := p.QueryRow(ctx, `
+		SELECT source, price_kobo, volume_units FROM price_observations
+		 WHERE instrument_id = $1 AND source = 'manual' AND obs_date = $2::date`, "EQ:"+sym, testDate).
+		Scan(&source, &price, &volume); err != nil {
+		t.Fatalf("manual observation: %v", err)
+	}
+	if price != 800 || volume != 0 {
+		t.Errorf("manual observation %s %d kobo %d units, want 800 and 0", source, price, volume)
+	}
+	var fair, listed int64
+	var findings string
+	if err := p.QueryRow(ctx, `
+		SELECT fair_value_kobo, listing_price_kobo, findings::text FROM listing_applications
+		 WHERE proposed_symbol = $1`, sym).Scan(&fair, &listed, &findings); err != nil {
+		t.Fatal(err)
+	}
+	if fair != 8_000_000_000 || listed != 800 || !strings.Contains(findings, "re-anchored by ngozi: listed before the pricing rule") ||
+		!strings.Contains(findings, "→ ₦8.00") {
+		t.Errorf("application: fair %d listed %d findings %s", fair, listed, findings)
+	}
+
+	// The public sees the new price at once, and where it came from.
+	ps := public.New(p, c.svc)
+	ps.Now = c.s.Now
+	pub := httptest.NewServer(ps.API())
+	defer pub.Close()
+	resp, err := http.Get(pub.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&m)
+	resp.Body.Close()
+	list, _ := m["instruments"].([]any)
+	if len(list) != 1 {
+		t.Fatalf("public market: %v", m)
+	}
+	if r := list[0].(map[string]any); r["price_kobo"] != float64(800) || r["price_source"] != "manual" || r["reference_price_kobo"] != float64(800) {
+		t.Errorf("public row after re-anchor: %v", r)
+	}
+
+	// Not while a session is open: Monday's session is accepting.
+	const monday = "2026-09-21"
+	c.s.Now = func() time.Time { return time.Date(2026, 9, 21, 11, 0, 0, 0, scheme.Lagos) }
+	if _, err := p.Exec(ctx, `
+		INSERT INTO auctions (instrument_id, session_date, state, opens_at, freezes_at, prev_reference_kobo, rule)
+		VALUES ($1, $2::date, 'accepting', now(), now() + interval '1 hour', 800, 'max_volume')`, "EQ:"+sym, monday); err != nil {
+		t.Fatal(err)
+	}
+	if status, b := c.do(t, "POST", "/api/instruments/"+sym+"/reanchor", body, tok, "ngozi"); status != http.StatusConflict {
+		t.Errorf("during accepting: status %d %v, want 409", status, b)
 	}
 }

@@ -13,6 +13,7 @@ import (
 
 	"freedom/api/internal/exchange"
 	"freedom/api/internal/institution"
+	"freedom/api/internal/money"
 	"freedom/api/internal/scheme"
 )
 
@@ -351,6 +352,51 @@ func (s *Server) setSharesInIssue(ctx context.Context, r *http.Request) (any, er
 			VALUES ($1, 'authorised', $2, $3)`,
 			id, body.Units-before, fmt.Sprintf("shares in issue set to %d by %s: %s", body.Units, by, body.Reason)); err != nil {
 			return err
+		}
+		out, err = s.instrumentRow(ctx, tx, symbol)
+		return err
+	})
+	return out, err
+}
+
+// reanchor re-prices a listing admitted before the pricing rule
+// (LISTING-RULES §2.4) under it. The exchange decides the number; the
+// console carries the audited figures, the operator's name and the reason.
+func (s *Server) reanchor(ctx context.Context, r *http.Request) (any, error) {
+	by, err := operator(r)
+	if err != nil {
+		return nil, err
+	}
+	var body struct {
+		NetAssetsKobo int64  `json:"net_assets_kobo"`
+		RevenueKobo   int64  `json:"revenue_kobo"`
+		Reason        string `json:"reason"`
+	}
+	if err := decode(r, &body); err != nil {
+		return nil, err
+	}
+	if body.NetAssetsKobo <= 0 || body.RevenueKobo <= 0 {
+		return nil, invalid("net assets and revenue must both be positive, in kobo, from the audited accounts")
+	}
+	if strings.TrimSpace(body.Reason) == "" {
+		return nil, invalid("a reason is required")
+	}
+	symbol := strings.ToUpper(chi.URLParam(r, "symbol"))
+	var out row
+	err = s.inTx(ctx, func(tx pgx.Tx) error {
+		id, err := instrumentID(ctx, tx, symbol)
+		if err != nil {
+			return err
+		}
+		_, err = exchange.Reanchor(ctx, tx, id, s.today(), exchange.StandardCriteria(),
+			money.Kobo(body.NetAssetsKobo), money.Kobo(body.RevenueKobo), by, body.Reason)
+		switch {
+		case errors.Is(err, exchange.ErrNoSharesInIssue):
+			return &apiError{http.StatusUnprocessableEntity, "unpriceable", "Set shares in issue first"}
+		case errors.Is(err, exchange.ErrSessionOpen):
+			return &apiError{http.StatusConflict, "refused", "Re-anchor after the close"}
+		case err != nil:
+			return refused(err)
 		}
 		out, err = s.instrumentRow(ctx, tx, symbol)
 		return err

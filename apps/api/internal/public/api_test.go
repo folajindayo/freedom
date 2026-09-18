@@ -120,7 +120,9 @@ func mamaPut(symbol string) rail.BusinessRequest {
 	r.Evidence.SharesInIssue, r.Evidence.PublicShares = 800_000_000_000_000, 120_000_000_000_000
 	r.Evidence.Holders, r.Evidence.TreasuryUnits = 31, 180_000_000_000_000
 	r.Evidence.BoardResolution, r.Evidence.DirectorsClear = true, true
-	r.ReferencePriceKobo, r.SharesAuthorisedUnits, r.DailyReleaseUnits = 4000, 1_000_000_000_000_000, 50_000_000_000_000
+	// (₦80m + 1.0 × ₦240m) / 8,000,000 shares: the exchange lists it at ₦40.
+	r.Evidence.NetAssetsKobo, r.Evidence.RevenueKobo = 8_000_000_000, 24_000_000_000
+	r.SharesAuthorisedUnits, r.DailyReleaseUnits = 1_000_000_000_000_000, 50_000_000_000_000
 	r.Holders = append(r.Holders, struct {
 		CardholderRef string `json:"cardholder_ref"`
 		Units         int64  `json:"units"`

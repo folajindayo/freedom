@@ -72,9 +72,9 @@ them.
     "trading_months": 30, "audited_accounts": true, "auditor_on_list": true,
     "shares_in_issue": 800000000000000,   "public_shares": 120000000000000,
     "holders": 31, "treasury_units": 180000000000000,
-    "board_resolution": true, "directors_clear": true
+    "board_resolution": true, "directors_clear": true,
+    "net_assets_kobo": 8000000000, "revenue_kobo": 24000000000
   },
-  "reference_price_kobo": 4000,
   "shares_authorised_units": 1000000000000000,
   "daily_release_units": 50000000000000,
   "cofund_bps": 0,
@@ -83,15 +83,20 @@ them.
 ```
 Behaviour, in one transaction: create `companies` + `merchants` (with
 `external_ref`, `company_id`, `cofund_bps`) if absent → `exchange.Apply` →
-`exchange.Assess(StandardCriteria(), evidence)` → if every finding is met,
-`exchange.AdmitListing(reference, authorised, dailyRelease, by="rail")` → then
+`exchange.Assess(StandardCriteria(), evidence)` → `exchange.ListingPrice`
+sets the price from the audited figures (LISTING-RULES §2.4) and records it as
+the `listing_price` finding → if every finding is met,
+`exchange.AdmitListing(price, authorised, dailyRelease, by="rail")` → then
 distribute `holders` from treasury as zero-cost lots dated today, unlocked
 (`transferable_from` = listing date; these are founders' shares, not tap
 earnings). Response `201`:
 ```json
 { "symbol": "MAMAPUT", "instrument_id": "…", "state": "listed",
-  "findings": [{"criterion":"free_float","met":true,"detail":"15.0% ≥ 10%"}, …],
-  "reference_price_kobo": 4000, "treasury_units": 130000000000000 }
+  "findings": [{"criterion":"free_float","met":true,"detail":"15.0% ≥ 10%"}, …,
+               {"criterion":"listing_price","met":true,
+                "detail":"fair value ₦320,000,000.00 (net assets ₦80,000,000.00 + 1.0× revenue ₦240,000,000.00) over 8000000 shares → listed at ₦40.00"}],
+  "reference_price_kobo": 4000, "fair_value_kobo": 32000000000,
+  "treasury_units": 130000000000000 }
 ```
 If a finding is unmet the application is recorded and returned with `state:
 "rejected"` (HTTP `200`, not an error — the merchant needs the findings). A
@@ -239,3 +244,19 @@ nothing else changes).
   `shares_authorised_units`, `daily_release_units`; holdings rows use `holding`
   and `lot_count`; activity is `{activity:[…]}` keyed by `tap_id`. Full shapes:
   `/Users/mac/tapp-platform/apps/api/docs/equity.md`.
+- **The exchange sets the listing price** (LISTING-RULES §2.4, migration
+  0017). `POST /v1/rail/businesses` `evidence` takes `net_assets_kobo` and
+  `revenue_kobo` (audited; revenue trailing 12 months); both must be positive
+  or the application is refused on `financials`. `reference_price_kobo` in the
+  request is accepted for clients already deployed and **ignored**. The
+  response's `reference_price_kobo` is the price the exchange set — fair
+  value (`fair_value_kobo` = net assets + 1.0× revenue) over `shares_in_issue`,
+  rounded down to the tick, never below one tick — recorded as the
+  `listing_price` finding. A rejected application carries the same two
+  fields, so the merchant sees what it would have listed at. Tapp still sends
+  `reference_price`; it should stop, and send the two audited figures instead.
+- Listings admitted before the rule are re-anchored under it from the console:
+  `POST /console/api/instruments/{symbol}/reanchor` `{net_assets_kobo,
+  revenue_kobo, reason}` (after the close; shares in issue must be set). The
+  new reference is a `manual` price observation, so the public market row
+  shows `price_source: "manual"` until the next session prints.

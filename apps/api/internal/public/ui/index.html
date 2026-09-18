@@ -191,7 +191,7 @@ const change = bps => bps==null ? '<span class="faint">—</span>' : `<span clas
 const mono = (sym, cls='') => `<span class="tile ${cls}">${esc(String(sym||'').slice(0,2))}</span>`;
 const structure = s => chip(s);
 const haltChip = h => h ? chip('halted','red') : chip('trading','green');
-const priceNote = s => s==='auction' ? 'last auction' : s==='carry_forward' ? 'carried forward' : 'reference price';
+const priceNote = s => s==='auction' ? 'last auction' : s==='carry_forward' ? 'carried forward' : s==='manual' ? 'set by the exchange' : 'reference price';
 
 async function getJSON(path){
   const r = await fetch(path, {headers:{Accept:'application/json'}});

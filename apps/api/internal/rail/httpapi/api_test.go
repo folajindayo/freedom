@@ -130,9 +130,10 @@ func business(symbol string) map[string]any {
 			"shares_in_issue": 800000000000000, "public_shares": 120000000000000,
 			"holders": 31, "treasury_units": 180000000000000,
 			"board_resolution": true, "directors_clear": true,
+			"net_assets_kobo": 8000000000, "revenue_kobo": 24000000000,
 		},
-		"reference_price_kobo": 4000, "shares_authorised_units": 1000000000000000,
-		"daily_release_units": 50000000000000, "cofund_bps": 0,
+		"shares_authorised_units": 1000000000000000,
+		"daily_release_units":     50000000000000, "cofund_bps": 0,
 		"holders": []map[string]any{{"cardholder_ref": "usr_owner", "units": 50000000000000, "label": "founder"}},
 	}
 }

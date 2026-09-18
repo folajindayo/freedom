@@ -82,7 +82,9 @@ type Instrument struct {
 	// PriceKobo is the last published price: today's session if it has
 	// published, else the current observation, else the reference.
 	PriceKobo int64 `json:"price_kobo"`
-	// PriceSource is auction, carry_forward or reference.
+	// PriceSource is auction, carry_forward, manual (a correction or a
+	// re-anchor by the exchange, on the record as an observation) or
+	// reference.
 	PriceSource string `json:"price_source"`
 	// ChangeBps is the move against the previous session's (adjusted) price;
 	// null when there is no previous session.
@@ -193,9 +195,11 @@ const instrumentSelect = `
 	SELECT i.symbol, c.legal_name, COALESCE(m.trading_name, ''), i.status, i.clob_review_state,
 	       EXISTS (SELECT 1 FROM trading_halts h WHERE h.instrument_id = i.id AND h.released_at IS NULL),
 	       i.reference_price_kobo, i.shares_in_issue_units, i.listed_at,
-	       CASE WHEN a.state = 'published' AND a.clearing_price_kobo IS NOT NULL THEN a.clearing_price_kobo
+	       CASE WHEN a.state = 'published' AND a.clearing_price_kobo IS NOT NULL
+	                 AND NOT (po.source = 'manual' AND po.obs_date >= a.session_date) THEN a.clearing_price_kobo
 	            ELSE po.price_kobo END,
-	       CASE WHEN a.state = 'published' AND a.clearing_price_kobo IS NOT NULL THEN 'auction'
+	       CASE WHEN a.state = 'published' AND a.clearing_price_kobo IS NOT NULL
+	                 AND NOT (po.source = 'manual' AND po.obs_date >= a.session_date) THEN 'auction'
 	            ELSE po.source END,
 	       prev.adj_price_kobo,
 	       (SELECT COUNT(DISTINCT l.account_id) FROM holding_lots l JOIN accounts acc ON acc.id = l.account_id
@@ -233,10 +237,9 @@ func scanInstrument(rows pgx.Rows) (Instrument, error) {
 	switch {
 	case price != nil && *price > 0:
 		v.PriceKobo = *price
-		if source != nil && *source == "carry_forward" {
-			v.PriceSource = "carry_forward"
-		} else {
-			v.PriceSource = "auction"
+		v.PriceSource = "auction"
+		if source != nil && (*source == "carry_forward" || *source == "manual") {
+			v.PriceSource = *source
 		}
 	default:
 		v.PriceKobo = v.ReferencePriceKobo

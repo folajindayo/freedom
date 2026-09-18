@@ -62,6 +62,65 @@ Accepting the Freedom card does not entitle a business to list. Listing is a
 separate application, separately assessed. The card relationship is what makes
 the listing *useful*; it is not what makes it *appropriate*.
 
+### 2.4 The listing price
+
+**The exchange names the listing price; the applicant supplies audited net
+assets and revenue.**
+
+An applicant does not propose a price, because an applicant cannot be trusted
+to. The first version of the onboarding form let the founder type a number, and
+one typed ₦100,000 a share against ten million shares: a ₦1 trillion valuation
+for a business the size of a kitchen. Nothing about that is fraud — it is what
+anyone does when asked to value their own company — and that is why the
+question must not be asked. The number that opens the first auction is the
+exchange's, derived from figures an auditor has signed, and the applicant's
+opinion of it is recorded nowhere.
+
+The price is fair value over the shares in issue:
+
+```
+FairValue    = NetAssets + RevenueMultiple × Revenue
+ListingPrice = FairValue / SharesInIssue
+```
+
+- *Net assets* and *revenue* are taken from the audited accounts §2.1 already
+  requires: net assets at the balance sheet date, revenue for the trailing
+  twelve months. An applicant without them has no fair value, so has no price,
+  so cannot list — this is a separate finding (`financials`) beside the
+  audit one, so a refusal says which was missing.
+- *RevenueMultiple* is **1.0×**. ⚠ It is a placeholder chosen to be argued
+  with, and one number for every sector is plainly crude; a restaurant and a
+  pharmacy do not turn revenue into value at the same rate. It is a criterion,
+  not a constant in code, so changing it is a rulebook decision made in the
+  open rather than a deployment.
+- The division rounds **down** to the instrument's tick, so the price never
+  overstates the accounts, and is never below **one tick**, so a company whose
+  fair value is below a kobo a share still has a number the auction can move
+  away from.
+
+The price is a starting point, not a verdict. The auction discovers the value
+from the first session; this rule only decides where discovery starts, and it
+starts from the accounts rather than from hope. The figures the decision was
+made from — fair value, net assets, revenue, the multiple, the share count and
+the resulting price — are written on the application beside the other
+findings, so the answer to "why ₦8?" is on the record and not in someone's
+memory.
+
+A listing admitted before this rule existed is re-anchored under it by the
+exchange, after a close and never during a session, from the same audited
+figures: the new reference is written as a manual price observation and as a
+further `listing_price` finding naming who did it and why.
+
+*What the revenue anchor is meant to become:* the audited revenue figure is
+the best evidence available on the day a business lists, and the worst
+available a year later, because by then the exchange has watched the business
+trade. The intent of the rule is that after **90 sessions** ⚠ the revenue
+anchor moves from the audited accounts to the merchant's **annualised card
+turnover through the scheme** — revenue the exchange has itself settled and
+cannot be told stories about. That re-anchoring is **not yet implemented**;
+today the audited figure is the only one used, and the fair value on the
+record is the one computed at admission.
+
 ## 3. Continuing obligations
 
 ### 3.1 Disclosure
@@ -215,4 +274,5 @@ question is about *which* registration, not whether one is needed.
 *Cross-references: `docs/REGULATORY.md` for licences, capital and counsel questions;
 `docs/SECURITY.md` for market integrity controls;
 `internal/exchange/graduation.go` for the liquidity gate as implemented;
+`internal/exchange/admission.go` (`ListingPrice`) for §2.4 as implemented;
 `internal/institution/` for disclosure, complaints and investor protection.*

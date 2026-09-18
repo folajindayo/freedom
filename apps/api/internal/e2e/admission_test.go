@@ -58,7 +58,7 @@ func TestAdmissionRecordsEveryFindingSeparately(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"trading_history", "free_float", "holders", "sponsor",
-		"audited_accounts", "treasury_pool", "directors"} {
+		"audited_accounts", "treasury_pool", "directors", "financials"} {
 		if _, ok := failed[want]; !ok {
 			t.Errorf("%s should have failed", want)
 		}
@@ -122,6 +122,7 @@ func TestAdmissionListsAMerchantAndUnblocksItsBuyback(t *testing.T) {
 			SharesInIssue: share.Whole(10_000), PublicShares: share.Whole(1_500),
 			Holders: 40, TreasuryUnits: share.Whole(2_000),
 			BoardResolution: true, DirectorsClear: true,
+			NetAssetsKobo: money.Naira(100_000), RevenueKobo: money.Naira(150_000),
 		})
 		return err
 	})

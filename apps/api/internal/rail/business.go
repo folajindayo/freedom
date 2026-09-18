@@ -42,8 +42,15 @@ type BusinessRequest struct {
 		TreasuryUnits   int64 `json:"treasury_units"`
 		BoardResolution bool  `json:"board_resolution"`
 		DirectorsClear  bool  `json:"directors_clear"`
+		// From the audited accounts: net assets at the balance sheet date and
+		// revenue for the trailing twelve months, in kobo. The exchange sets
+		// the listing price from these.
+		NetAssetsKobo int64 `json:"net_assets_kobo"`
+		RevenueKobo   int64 `json:"revenue_kobo"`
 	} `json:"evidence"`
-	ReferencePriceKobo    int64 `json:"reference_price_kobo"`
+	// ReferencePriceKobo is accepted from clients that still send it and
+	// ignored: the applicant does not name the price, the exchange does.
+	ReferencePriceKobo    int64 `json:"reference_price_kobo,omitempty"`
 	SharesAuthorisedUnits int64 `json:"shares_authorised_units"`
 	DailyReleaseUnits     int64 `json:"daily_release_units"`
 	CoFundBps             int64 `json:"cofund_bps"`
@@ -56,13 +63,18 @@ type BusinessRequest struct {
 
 // Listing is the outcome of an application.
 type Listing struct {
-	MerchantRef        string             `json:"merchant_ref"`
-	Symbol             string             `json:"symbol"`
-	InstrumentID       *string            `json:"instrument_id"`
-	State              string             `json:"state"`
-	Findings           []exchange.Finding `json:"findings"`
-	ReferencePriceKobo money.Kobo         `json:"reference_price_kobo"`
-	TreasuryUnits      share.Units        `json:"treasury_units"`
+	MerchantRef  string             `json:"merchant_ref"`
+	Symbol       string             `json:"symbol"`
+	InstrumentID *string            `json:"instrument_id"`
+	State        string             `json:"state"`
+	Findings     []exchange.Finding `json:"findings"`
+	// ReferencePriceKobo is the price the exchange set: fair value over the
+	// shares in issue. On a refused application it is the price the company
+	// would have listed at, so the merchant sees the number as well as the
+	// reasons. FairValueKobo is net assets plus the revenue multiple.
+	ReferencePriceKobo money.Kobo  `json:"reference_price_kobo"`
+	FairValueKobo      money.Kobo  `json:"fair_value_kobo"`
+	TreasuryUnits      share.Units `json:"treasury_units"`
 }
 
 // OnboardBusiness applies, assesses, admits and seeds — or records the refusal.
@@ -80,8 +92,11 @@ func (s *Service) OnboardBusiness(ctx context.Context, req BusinessRequest) (out
 	if len(req.MCC) != 4 {
 		return out, false, fmt.Errorf("%w: mcc must be four digits", ErrInvalid)
 	}
-	if req.ReferencePriceKobo <= 0 || req.SharesAuthorisedUnits <= 0 || req.DailyReleaseUnits <= 0 {
-		return out, false, fmt.Errorf("%w: reference_price_kobo, shares_authorised_units and daily_release_units must be positive", ErrInvalid)
+	if req.SharesAuthorisedUnits <= 0 || req.DailyReleaseUnits <= 0 {
+		return out, false, fmt.Errorf("%w: shares_authorised_units and daily_release_units must be positive", ErrInvalid)
+	}
+	if req.Evidence.NetAssetsKobo < 0 || req.Evidence.RevenueKobo < 0 {
+		return out, false, fmt.Errorf("%w: net_assets_kobo and revenue_kobo must not be negative", ErrInvalid)
 	}
 	if req.CoFundBps < 0 || req.CoFundBps > 300 {
 		return out, false, fmt.Errorf("%w: cofund_bps must be between 0 and 300", ErrInvalid)
@@ -307,16 +322,18 @@ func (s *Service) listingFor(ctx context.Context, q ledger.Querier, merchantRef 
 	var findings []byte
 	var instrumentID *string
 	var refPrice *int64
+	var listingPrice int64
 	var appState string
 	err := q.QueryRow(ctx, `
-		SELECT a.proposed_symbol, a.state, a.findings, i.id, i.reference_price_kobo
+		SELECT a.proposed_symbol, a.state, a.findings, a.fair_value_kobo, a.listing_price_kobo,
+		       i.id, i.reference_price_kobo
 		  FROM merchants m
 		  JOIN listing_applications a ON a.merchant_id = m.id
 		  LEFT JOIN instruments i ON i.company_id = a.company_id
 		                         AND i.status IN ('listed','halted','suspended')
 		 WHERE m.external_ref = $1
 		 ORDER BY a.created_at DESC LIMIT 1`, merchantRef).
-		Scan(&l.Symbol, &appState, &findings, &instrumentID, &refPrice)
+		Scan(&l.Symbol, &appState, &findings, &l.FairValueKobo, &listingPrice, &instrumentID, &refPrice)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return l, fmt.Errorf("%w: no business registered for merchant %q", ErrNotFound, merchantRef)
 	}
@@ -332,6 +349,9 @@ func (s *Service) listingFor(ctx context.Context, q ledger.Querier, merchantRef 
 	}
 	l.State = appState
 	l.InstrumentID = instrumentID
+	// The instrument's reference moves with the market once listed; before
+	// that (or if refused) the price is the one the exchange set at decision.
+	l.ReferencePriceKobo = money.Kobo(listingPrice)
 	if refPrice != nil {
 		l.ReferencePriceKobo = money.Kobo(*refPrice)
 	}
@@ -603,7 +623,8 @@ func haltOf(ctx context.Context, q ledger.Querier, instrumentID string) (HaltVie
 // resubmissions share it, so the two cannot drift.
 func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req BusinessRequest,
 	app, companyID, merchantID uuid.UUID, today string) (out Listing, err error) {
-	assessed, err := exchange.Assess(ctx, tx, app, exchange.StandardCriteria(), exchange.Evidence{
+	criteria := exchange.StandardCriteria()
+	evidence := exchange.Evidence{
 		TradingMonths:   req.Evidence.TradingMonths,
 		AuditedAccounts: req.Evidence.AuditedAccounts,
 		AuditorOnList:   req.Evidence.AuditorOnList,
@@ -613,15 +634,27 @@ func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req Busine
 		TreasuryUnits:   share.Units(req.Evidence.TreasuryUnits),
 		BoardResolution: req.Evidence.BoardResolution,
 		DirectorsClear:  req.Evidence.DirectorsClear,
-	})
+		NetAssetsKobo:   money.Kobo(req.Evidence.NetAssetsKobo),
+		RevenueKobo:     money.Kobo(req.Evidence.RevenueKobo),
+	}
+	assessed, err := exchange.Assess(ctx, tx, app, criteria, evidence)
 	if err != nil {
+		return out, err
+	}
+	// The exchange names the price, not the applicant (LISTING-RULES §2.4).
+	// It goes on the record with the other findings even when the
+	// application is refused, so the merchant sees the number it was short
+	// of listing at as well as the reasons.
+	price, fair := exchange.ListingPrice(criteria, evidence, exchange.DefaultRules().Tick)
+	if err := exchange.RecordListingPrice(ctx, tx, &assessed, criteria, evidence, price, fair); err != nil {
 		return out, err
 	}
 	out = Listing{
 		MerchantRef:        req.MerchantRef,
 		Symbol:             assessed.ProposedSymbol,
 		Findings:           assessed.Findings,
-		ReferencePriceKobo: money.Kobo(req.ReferencePriceKobo),
+		ReferencePriceKobo: price,
+		FairValueKobo:      fair,
 	}
 	if !assessed.Passes() {
 		var short []string
@@ -637,7 +670,7 @@ func (s *Service) decide(ctx context.Context, tx pgx.Tx, id identity, req Busine
 		return out, nil
 	}
 
-	instrumentID, err := exchange.AdmitListing(ctx, tx, assessed, money.Kobo(req.ReferencePriceKobo),
+	instrumentID, err := exchange.AdmitListing(ctx, tx, assessed, price,
 		share.Units(req.SharesAuthorisedUnits), share.Units(req.DailyReleaseUnits), "rail")
 	if err != nil {
 		return out, err

@@ -119,7 +119,9 @@ func mamaPut(symbol, merchantRef, founderRef string) BusinessRequest {
 	r.Evidence.TreasuryUnits = 180_000_000_000_000
 	r.Evidence.BoardResolution = true
 	r.Evidence.DirectorsClear = true
-	r.ReferencePriceKobo = 4000
+	// (₦80m + 1.0 × ₦240m) / 8,000,000 shares: the exchange lists it at ₦40.
+	r.Evidence.NetAssetsKobo = 8_000_000_000
+	r.Evidence.RevenueKobo = 24_000_000_000
 	r.SharesAuthorisedUnits = 1_000_000_000_000_000
 	r.DailyReleaseUnits = 50_000_000_000_000
 	r.Holders = append(r.Holders, struct {
@@ -338,6 +340,123 @@ func TestOnboardRejectsAFailingBusiness(t *testing.T) {
 	// And once listed, a further call is a read again.
 	if got, created, err := s.OnboardBusiness(ctx, req); err != nil || created || got.State != "listed" {
 		t.Fatalf("call after listing: created=%v %+v %v", created, got, err)
+	}
+}
+
+// The exchange names the price. An applicant's own number, if it still sends
+// one, is ignored: ₦20m of net assets and ₦60m of revenue over 10,000,000
+// shares is ₦8.00 a share whatever the founder typed.
+func TestOnboardPricesTheListingFromTheAccounts(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	s := newService(t, p)
+
+	sym := symbol()
+	req := mamaPut(sym, "sp_blaze", "usr_blaze")
+	req.Evidence.SharesInIssue = 1_000_000_000_000_000 // 10,000,000 shares
+	req.Evidence.PublicShares = 150_000_000_000_000
+	req.Evidence.NetAssetsKobo = int64(money.Naira(20_000_000))
+	req.Evidence.RevenueKobo = int64(money.Naira(60_000_000))
+	req.ReferencePriceKobo = 10_000_000 // ₦100,000, and nobody asked
+	l, _, err := s.OnboardBusiness(ctx, req)
+	if err != nil {
+		t.Fatalf("onboard: %v", err)
+	}
+	if l.State != "listed" || l.ReferencePriceKobo != money.Naira(8) || l.FairValueKobo != money.Naira(80_000_000) {
+		t.Fatalf("state %s at %s (fair value %s), want listed at ₦8.00; findings %+v",
+			l.State, l.ReferencePriceKobo, l.FairValueKobo, l.Findings)
+	}
+	var ref int64
+	if err := p.QueryRow(ctx, `SELECT reference_price_kobo FROM instruments WHERE id = $1`, "EQ:"+sym).Scan(&ref); err != nil {
+		t.Fatal(err)
+	}
+	if ref != 800 {
+		t.Errorf("instrument reference = %d kobo, want 800", ref)
+	}
+	var found *exchange.Finding
+	for i := range l.Findings {
+		if l.Findings[i].Criterion == "listing_price" {
+			found = &l.Findings[i]
+		}
+	}
+	if found == nil || !found.Met {
+		t.Fatalf("no listing_price finding on the record: %+v", l.Findings)
+	}
+	for _, want := range []string{"₦80,000,000.00", "₦20,000,000.00", "1.0×", "₦60,000,000.00", "10000000 shares", "listed at ₦8.00"} {
+		if !strings.Contains(found.Detail, want) {
+			t.Errorf("listing_price detail %q lacks %q", found.Detail, want)
+		}
+	}
+	// The record re-read says the same.
+	again, created, err := s.OnboardBusiness(ctx, req)
+	if err != nil || created || again.ReferencePriceKobo != money.Naira(8) || again.FairValueKobo != money.Naira(80_000_000) {
+		t.Fatalf("replay: %+v created=%v err=%v", again, created, err)
+	}
+	t.Logf("%s: %s", sym, found.Detail)
+}
+
+// The rules' worked example: ₦120m + ₦280m over 8,000,000 shares is ₦50.00.
+func TestOnboardPricesAtFifty(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	s := newService(t, p)
+
+	req := mamaPut(symbol(), "sp_fifty", "usr_fifty")
+	req.Evidence.NetAssetsKobo = int64(money.Naira(120_000_000))
+	req.Evidence.RevenueKobo = int64(money.Naira(280_000_000))
+	l, _, err := s.OnboardBusiness(ctx, req)
+	if err != nil || l.State != "listed" || l.ReferencePriceKobo != money.Naira(50) {
+		t.Fatalf("state %s at %s, want listed at ₦50.00 (err %v)", l.State, l.ReferencePriceKobo, err)
+	}
+}
+
+// A fair value below one tick a share lists at one tick, not at zero.
+func TestOnboardNeverPricesBelowATick(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	s := newService(t, p)
+
+	req := mamaPut(symbol(), "sp_tiny", "usr_tiny")
+	req.Evidence.NetAssetsKobo = 1
+	req.Evidence.RevenueKobo = 1
+	l, _, err := s.OnboardBusiness(ctx, req)
+	if err != nil || l.State != "listed" || l.ReferencePriceKobo != 1 {
+		t.Fatalf("state %s at %s, want listed at one kobo (err %v)", l.State, l.ReferencePriceKobo, err)
+	}
+}
+
+// No audited financials, no price, no listing — and the refusal still
+// carries the price the exchange would have set, which here is a tick.
+func TestOnboardRefusesAnUnpriceableBusiness(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	s := newService(t, p)
+
+	req := mamaPut(symbol(), "sp_nofin", "usr_nofin")
+	req.Evidence.NetAssetsKobo = 0
+	req.Evidence.RevenueKobo = 0
+	l, _, err := s.OnboardBusiness(ctx, req)
+	if err != nil {
+		t.Fatalf("onboard: %v", err)
+	}
+	if l.State != "rejected" || l.InstrumentID != nil {
+		t.Fatalf("state = %s instrument = %v", l.State, l.InstrumentID)
+	}
+	unmet := map[string]bool{}
+	for _, f := range l.Findings {
+		if !f.Met {
+			unmet[f.Criterion] = true
+		}
+	}
+	if !unmet["financials"] || len(unmet) != 1 {
+		t.Errorf("unmet = %v, want exactly financials", unmet)
+	}
+	if l.FairValueKobo != 0 || l.ReferencePriceKobo != 1 {
+		t.Errorf("refusal reports fair value %s, price %s; want ₦0.00 and one tick", l.FairValueKobo, l.ReferencePriceKobo)
+	}
+	again, _, err := s.OnboardBusiness(ctx, req)
+	if err != nil || again.State != "rejected" || again.ReferencePriceKobo != 1 {
+		t.Fatalf("replay of a refusal: %+v %v", again, err)
 	}
 }
 
