@@ -243,15 +243,19 @@ func prices(ctx context.Context, q ledger.Querier, symbol string) ([]PricePoint,
 	return out, rows.Err()
 }
 
-// Activity is one buyback intent as the cardholder sees it.
+// Activity is one buyback intent as the cardholder sees it: where the card
+// was spent, for how much, and what that tap bought.
 type Activity struct {
-	TapRef      *string     `json:"tap_ref"`
-	Symbol      *string     `json:"symbol"`
-	FundingKobo money.Kobo  `json:"funding_kobo"`
-	State       string      `json:"state"`
-	Units       share.Units `json:"units"`
-	PriceKobo   money.Kobo  `json:"price_kobo"`
-	At          string      `json:"at"`
+	TapRef        *string     `json:"tap_ref"`
+	MerchantRef   *string     `json:"merchant_ref"`
+	MerchantName  string      `json:"merchant_name"`
+	Symbol        *string     `json:"symbol"`
+	TapAmountKobo money.Kobo  `json:"tap_amount_kobo"`
+	FundingKobo   money.Kobo  `json:"funding_kobo"`
+	State         string      `json:"state"`
+	Units         share.Units `json:"units"`
+	PriceKobo     money.Kobo  `json:"price_kobo"`
+	At            string      `json:"at"`
 }
 
 // Activity lists a cardholder's intents, newest first. Every state is shown
@@ -268,10 +272,12 @@ func (s *Service) Activity(ctx context.Context, cardholderRef string, limit int)
 			return err
 		}
 		rows, err := tx.Query(ctx, `
-			SELECT p.arn, i.symbol, bi.funding_kobo, bi.state,
+			SELECT p.arn, m.external_ref, COALESCE(NULLIF(m.trading_name, ''), m.legal_name),
+			       i.symbol, p.amount_kobo, bi.funding_kobo, bi.state,
 			       COALESCE(bi.allocated_units, 0), COALESCE(bi.price_kobo, 0), bi.created_at::text
 			  FROM buyback_intents bi
 			  JOIN presentments p ON p.id = bi.presentment_id
+			  JOIN merchants m ON m.id = bi.merchant_id
 			  LEFT JOIN instruments i ON i.id = bi.instrument_id
 			 WHERE bi.cardholder_id = $1
 			 ORDER BY bi.created_at DESC, bi.id DESC LIMIT $2`, holder, limit)
@@ -282,7 +288,8 @@ func (s *Service) Activity(ctx context.Context, cardholderRef string, limit int)
 		for rows.Next() {
 			var a Activity
 			var arn string
-			if err := rows.Scan(&arn, &a.Symbol, &a.FundingKobo, &a.State, &a.Units, &a.PriceKobo, &a.At); err != nil {
+			if err := rows.Scan(&arn, &a.MerchantRef, &a.MerchantName, &a.Symbol, &a.TapAmountKobo,
+				&a.FundingKobo, &a.State, &a.Units, &a.PriceKobo, &a.At); err != nil {
 				return err
 			}
 			a.TapRef = tapRefOf(arn)

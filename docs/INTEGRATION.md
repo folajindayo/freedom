@@ -167,8 +167,10 @@ with its `lots` (`units`, `cost_kobo`, `acquired_at`, `transferable_from`,
 observations, same shape as `/v1/instruments/{symbol}/market-data`).
 
 `GET /v1/rail/cardholders/{cardholder_ref}/activity?limit=` — allocated and
-pending intents newest first: `tap_ref`, `symbol`, `funding_kobo`, `state`,
-`units`, `price_kobo`, `at`.
+pending intents newest first: `tap_ref`, `merchant_ref` (the merchant's
+Tapp ref), `merchant_name` (trading name, else legal name), `symbol`,
+`tap_amount_kobo` (the presentment's ticket), `funding_kobo`, `state`,
+`units`, `price_kobo`, `at`. Each item is one tap at one merchant.
 
 ### Market
 

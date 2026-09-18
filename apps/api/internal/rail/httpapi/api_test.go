@@ -225,7 +225,11 @@ func TestRailStatusCodes(t *testing.T) {
 		t.Errorf("unknown cardholder: %d, want 404", status)
 	}
 	if status, body = c.do(t, "GET", "/cardholders/usr_ada/activity?limit=5", nil, tok); status != http.StatusOK || len(body["activity"].([]any)) != 1 {
-		t.Errorf("activity: %d %v", status, body)
+		t.Fatalf("activity: %d %v", status, body)
+	}
+	if item := body["activity"].([]any)[0].(map[string]any); item["merchant_ref"] != "sp_1" || item["merchant_name"] == "" ||
+		item["tap_amount_kobo"] != float64(1000000) || item["symbol"] != sym {
+		t.Errorf("activity item: %v", item)
 	}
 	if status, body = c.do(t, "GET", "/businesses/sp_1/holders?limit=1", nil, tok); status != http.StatusOK || body["next_cursor"] == "" {
 		t.Errorf("holders page: %d %v", status, body)

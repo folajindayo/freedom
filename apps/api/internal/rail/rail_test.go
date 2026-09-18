@@ -567,7 +567,13 @@ func TestIngestTapAllocatesWhenPriced(t *testing.T) {
 
 	acts, err := s.Activity(ctx, "usr_ada", 10)
 	if err != nil || len(acts) != 1 || acts[0].State != "allocated" || *acts[0].TapRef != "tap_1" {
-		t.Errorf("activity %+v %v", acts, err)
+		t.Fatalf("activity %+v %v", acts, err)
+	}
+	// The item says where the card was spent and for how much, not only what
+	// the buyback bought.
+	if a := acts[0]; a.MerchantRef == nil || *a.MerchantRef != "sp_mama" || a.MerchantName != "Mama Put" ||
+		a.Symbol == nil || *a.Symbol != sym || a.TapAmountKobo != money.Naira(10_000) || a.FundingKobo != money.Naira(5) {
+		t.Errorf("activity item %+v", a)
 	}
 	t.Logf("one ₦10,000 tap at %s: %s now owns %s shares, locked until %s",
 		sym, "usr_ada", line.Shares, *line.NextUnlock)
