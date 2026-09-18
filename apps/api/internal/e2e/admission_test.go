@@ -343,3 +343,36 @@ func TestPositionsMustSumToZero(t *testing.T) {
 		t.Fatal("the unbalanced-positions error does not say what is wrong")
 	}
 }
+
+// A real issuer's share count is large. The float ratio must not overflow.
+func TestAdmissionFloatSurvivesALargeIssuer(t *testing.T) {
+	p := pool(t)
+	ctx := context.Background()
+	setup(t, p)
+
+	var company uuid.UUID
+	if err := p.QueryRow(ctx,
+		`INSERT INTO companies (legal_name) VALUES ('Blaze Africa Ltd') RETURNING id`).
+		Scan(&company); err != nil {
+		t.Fatal(err)
+	}
+	var assessed exchange.Application
+	mustTx(t, p, func(tx pgx.Tx) error {
+		app, err := exchange.Apply(ctx, tx, company, "BLAZE", nil, nil)
+		if err != nil {
+			return err
+		}
+		assessed, err = exchange.Assess(ctx, tx, app, exchange.StandardCriteria(), exchange.Evidence{
+			TradingMonths: 24,
+			SharesInIssue: share.Whole(100_000_000), // 1e16 units: ×10,000 overflows int64
+			PublicShares:  share.Whole(15_000_000),  // 15%
+			Holders:       1_000,
+		})
+		return err
+	})
+	for _, f := range assessed.Findings {
+		if f.Criterion == "free_float" && !f.Met {
+			t.Fatalf("a 15%% float on a large issuer was refused: %s", f.Detail)
+		}
+	}
+}

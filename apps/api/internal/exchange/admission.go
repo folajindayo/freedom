@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/google/uuid"
@@ -170,9 +171,15 @@ func Assess(ctx context.Context, tx pgx.Tx, applicationID uuid.UUID, c Criteria,
 	// The buyback needs somewhere for a price to come from. A symbol whose only
 	// holders are the founder and the scheme has no market, and its auction
 	// would be the scheme trading with the issuer.
+	//
+	// Quantities are units (1e8 per share), so a real issuer's count times
+	// 10,000 does not fit in an int64: a company with a hundred million
+	// shares in issue overflowed here and read as a negative float. The
+	// intermediate is exact.
 	var floatBps int64
 	if e.SharesInIssue > 0 {
-		floatBps = int64(e.PublicShares) * 10_000 / int64(e.SharesInIssue)
+		num := new(big.Int).Mul(big.NewInt(int64(e.PublicShares)), big.NewInt(10_000))
+		floatBps = new(big.Int).Quo(num, big.NewInt(int64(e.SharesInIssue))).Int64()
 	}
 	add("free_float", floatBps >= c.MinFreeFloatBps,
 		"%d bps in public hands, needs %d", floatBps, c.MinFreeFloatBps)
