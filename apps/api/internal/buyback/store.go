@@ -71,28 +71,35 @@ func (e *Engine) executionPrice(ctx context.Context, tx pgx.Tx, instrumentID, se
 		return 0, PriceRefused{RefusalSurveillance}
 	}
 
-	// 3. This session's auction must have published. Reaching back to an earlier
-	//    session would let the buyback run before the market it is supposed to
-	//    be taking its price from.
+	// 3. If this date has a session, it must have published: the buyback must
+	//    never run ahead of the market it takes its price from. A date with
+	//    no session at all — a weekend, a holiday, the hours after the 20:00
+	//    cutover — is a different case: there is no market today to wait
+	//    for, and the price the next session would carry forward is the
+	//    reference we already hold. A Friday-evening tap should not wait
+	//    until Monday for shares the market would price identically.
 	var zeroVolume bool
 	var clearing *int64
+	var state string
 	err := tx.QueryRow(ctx, `
-		SELECT zero_volume, clearing_price_kobo FROM auctions
-		 WHERE instrument_id = $1 AND session_date = $2::date AND state = 'published'`,
-		instrumentID, sessionDate).Scan(&zeroVolume, &clearing)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, PriceRefused{RefusalNoSession}
-	}
-	if err != nil {
+		SELECT state, zero_volume, clearing_price_kobo FROM auctions
+		 WHERE instrument_id = $1 AND session_date = $2::date`,
+		instrumentID, sessionDate).Scan(&state, &zeroVolume, &clearing)
+	noSession := errors.Is(err, pgx.ErrNoRows)
+	if err != nil && !noSession {
 		return 0, fmt.Errorf("buyback: load session: %w", err)
+	}
+	if !noSession && state != "published" {
+		return 0, PriceRefused{RefusalNoSession}
 	}
 
 	var sessionPrice money.Kobo
-	if !zeroVolume && clearing != nil {
+	if !noSession && !zeroVolume && clearing != nil {
 		sessionPrice = money.Kobo(*clearing)
 	} else {
-		// 4. Nothing crossed. The carried-forward reference is usable, but only
-		//    while it is still recent enough to mean anything.
+		// 4. Nothing crossed, or no session today. The carried-forward
+		//    reference is usable, but only while it is still recent enough
+		//    to mean anything.
 		var carried, maxCarried int
 		var ref int64
 		if err := tx.QueryRow(ctx, `

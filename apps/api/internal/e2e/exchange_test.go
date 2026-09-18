@@ -562,34 +562,55 @@ func TestThinVWAPWindowRefusesRatherThanCapping(t *testing.T) {
 	}
 }
 
-// The buyback must not reach back to an older session's price when today's
-// auction has not run. Doing so would let it pay a price from before whatever
-// news moved the market.
-func TestBuybackRefusesWithoutAPublishedAuction(t *testing.T) {
+// The buyback must not run ahead of a market that is still forming today's
+// price: while the session exists and has not published, intents wait.
+// A date with no session at all is different — a weekend, a holiday, the
+// hours after cutover — and there the carried reference is the price the
+// next session would carry forward anyway, so the buyback may use it.
+func TestBuybackWaitsForAnOpenSessionButNotForAMissingOne(t *testing.T) {
 	p := pool(t)
 	ctx := context.Background()
 	n := setup(t, p)
+	e := &buyback.Engine{TrailingBandSessions: 0}
 
-	// Unwind today's session entirely, so the instrument has a reference price
-	// but no auction to take one from. ('published' is deliberately terminal,
-	// so it cannot simply be cancelled.)
+	// Today's session exists but has not priced: wait.
 	mustExec(t, p, `DELETE FROM price_observations WHERE instrument_id = $1`, n.instrumentID)
 	mustExec(t, p, `DELETE FROM auctions WHERE instrument_id = $1`, n.instrumentID)
+	mustExec(t, p, `
+		INSERT INTO auctions (instrument_id, session_date, state, opens_at, freezes_at)
+		VALUES ($1, $2::date, 'accepting', now(), now() + interval '2 hours')`,
+		n.instrumentID, sessionDate)
 	tap(t, p, n)
 
 	var b buyback.Result
 	mustTx(t, p, func(tx pgx.Tx) error {
 		var err error
-		e := &buyback.Engine{TrailingBandSessions: 0}
 		b, err = e.RunSession(ctx, tx, n.instrumentID, sessionDate)
 		return err
 	})
-
 	if b.Refusal != buyback.RefusalNoSession {
-		t.Fatalf("refusal = %q, want %q", b.Refusal, buyback.RefusalNoSession)
+		t.Fatalf("refusal = %q, want %q while the session is accepting", b.Refusal, buyback.RefusalNoSession)
 	}
 	if b.Escrowed == 0 {
-		t.Fatal("intents must escrow when there is no session to price against")
+		t.Fatal("intents must escrow while today's session has not priced")
+	}
+	if got := n.shares(t, p); got != 0 {
+		t.Fatalf("shares were allocated ahead of the session: %s", got)
+	}
+
+	// No session on this date at all: the carried reference prices it.
+	mustExec(t, p, `DELETE FROM auctions WHERE instrument_id = $1`, n.instrumentID)
+	mustExec(t, p, `UPDATE buyback_intents SET state = 'pending' WHERE state = 'escrowed'`)
+	mustTx(t, p, func(tx pgx.Tx) error {
+		var err error
+		b, err = e.RunSession(ctx, tx, n.instrumentID, sessionDate)
+		return err
+	})
+	if b.Refusal != "" || b.Units == 0 {
+		t.Fatalf("no session on the date: refusal %q units %d, want an allocation at the reference", b.Refusal, b.Units)
+	}
+	if got := n.shares(t, p); got == 0 {
+		t.Fatal("the carried reference should have priced the buyback")
 	}
 }
 
