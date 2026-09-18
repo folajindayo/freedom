@@ -335,13 +335,19 @@ func (a *API) marketData(w http.ResponseWriter, r *http.Request) {
 	}
 	var out []point
 	err := inTx(r, a.Pool, func(tx pgx.Tx) error {
+		// One observation per date, a correction beating a print beating a
+		// carry-forward — the precedence price_observations_current uses.
 		rows, err := tx.Query(r.Context(), `
-			SELECT p.obs_date::text, p.source, p.price_kobo, p.adj_price_kobo,
+			SELECT DISTINCT ON (p.obs_date)
+			       p.obs_date::text, p.source, p.price_kobo, p.adj_price_kobo,
 			       p.volume_units, p.trade_count
 			  FROM price_observations_adjusted p
 			  JOIN instruments i ON i.id = p.instrument_id
 			 WHERE i.symbol = $1
-			 ORDER BY p.obs_date DESC LIMIT 90`, strings.ToUpper(chi.URLParam(r, "symbol")))
+			 ORDER BY p.obs_date DESC,
+			          CASE p.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 ELSE 3 END,
+			          p.id DESC
+			 LIMIT 90`, strings.ToUpper(chi.URLParam(r, "symbol")))
 		if err != nil {
 			return err
 		}

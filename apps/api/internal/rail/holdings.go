@@ -222,12 +222,21 @@ func (s *Service) holdingLines(ctx context.Context, q ledger.Querier, holder uui
 }
 
 func prices(ctx context.Context, q ledger.Querier, symbol string) ([]PricePoint, error) {
+	// One price per date. A date can hold several observations — a carried
+	// reference and, later, a manual correction — and a series that shows
+	// both draws a vertical line and lets a chart pick the wrong one. The
+	// precedence is the one price_observations_current uses: a correction
+	// beats a print beats a carry-forward.
 	rows, err := q.Query(ctx, `
-		SELECT p.obs_date::text, p.source, p.price_kobo, p.adj_price_kobo, p.volume_units, p.trade_count
+		SELECT DISTINCT ON (p.obs_date)
+		       p.obs_date::text, p.source, p.price_kobo, p.adj_price_kobo, p.volume_units, p.trade_count
 		  FROM price_observations_adjusted p
 		  JOIN instruments i ON i.id = p.instrument_id
 		 WHERE i.symbol = $1
-		 ORDER BY p.obs_date DESC, p.id DESC LIMIT 90`, symbol)
+		 ORDER BY p.obs_date DESC,
+		          CASE p.source WHEN 'manual' THEN 0 WHEN 'auction' THEN 1 WHEN 'clob' THEN 2 ELSE 3 END,
+		          p.id DESC
+		 LIMIT 90`, symbol)
 	if err != nil {
 		return nil, fmt.Errorf("rail: prices: %w", err)
 	}
