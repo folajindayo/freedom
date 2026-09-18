@@ -352,3 +352,26 @@ func (s *Service) tradingDay(ctx context.Context, date string) bool {
 	})
 	return trading
 }
+
+// isTradingDay says whether the exchange expects to price a date: on the
+// published calendar as trading, or an unpublished weekday (which the close
+// treats as trading — see ensureCalendarDay). Weekends and published
+// holidays are not.
+func isTradingDay(ctx context.Context, tx pgx.Tx, date string) (bool, error) {
+	_, err := exchange.Lookup(ctx, tx, date)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.Is(err, exchange.ErrMarketClosed) {
+		return false, err
+	}
+	if !strings.Contains(err.Error(), "not on the published calendar") {
+		return false, nil // a published non-trading day
+	}
+	day, err := scheme.ParseBusinessDate(date)
+	if err != nil {
+		return false, err
+	}
+	wd := day.Weekday()
+	return wd != time.Saturday && wd != time.Sunday, nil
+}

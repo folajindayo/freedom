@@ -162,16 +162,25 @@ func (s *Service) allocateIfPriced(ctx context.Context, tx pgx.Tx, presentmentID
 	if err != nil {
 		return fmt.Errorf("rail: load intent: %w", err)
 	}
-	var forming bool
+	var published bool
 	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM auctions
-		                WHERE instrument_id = $1 AND session_date = $2::date
-		                  AND state NOT IN ('published','halted','cancelled'))`,
-		*instrumentID, today).Scan(&forming); err != nil {
+		                WHERE instrument_id = $1 AND session_date = $2::date AND state = 'published')`,
+		*instrumentID, today).Scan(&published); err != nil {
 		return fmt.Errorf("rail: session check: %w", err)
 	}
-	if forming {
-		return nil
+	if !published {
+		// On a trading day the session row does not exist until the close
+		// opens it, so its absence is not evidence that there is no market
+		// today: ask the calendar. A trading day waits for its price; a
+		// weekend or holiday has none coming and prices at the reference.
+		trading, err := isTradingDay(ctx, tx, today)
+		if err != nil {
+			return err
+		}
+		if trading {
+			return nil
+		}
 	}
 	_, err = s.Buyback.RunSession(ctx, tx, *instrumentID, today)
 	return err
