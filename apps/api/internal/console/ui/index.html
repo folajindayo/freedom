@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Freedom Exchange · Console</title>
+<meta name="theme-color" content="#1c1c1e">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -54,7 +58,6 @@ kbd{font:inherit;font-size:11px;color:var(--ink-3);border:1px solid var(--hair-2
 /* ---------- sign-in ---------- */
 #signin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--sidebar)}
 .card{width:360px;background:var(--panel);border:1px solid var(--hair-2);border-radius:var(--r-dlg);padding:24px}
-.card .tile{margin-bottom:14px}
 .card p{margin:4px 0 18px;color:var(--ink-2)}
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
 .field label{font-size:12px;color:var(--ink-2)}
@@ -78,6 +81,10 @@ select.in{appearance:none;background-image:linear-gradient(45deg,transparent 50%
 .ws{display:flex;align-items:center;gap:10px;padding:14px 14px 10px}
 .tile{width:28px;height:28px;border-radius:6px;background:var(--btn);color:var(--btn-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none}
 .tile.lg{width:40px;height:40px;font-size:17px;border-radius:8px}
+.brand{width:20px;height:20px;border-radius:22%;background:#1c1c1e;color:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.brand svg{display:block;width:62%;height:auto}
+.brand.lg{width:40px;height:40px}
+.card .brand{margin-bottom:14px}
 .ws-name{font-weight:600;font-size:13px;line-height:16px}
 .ws-date{font-size:12px;color:var(--ink-2);line-height:16px}
 .search{margin:2px 10px 8px;height:30px;display:flex;align-items:center;gap:8px;padding:0 8px 0 9px;border:1px solid var(--hair-2);border-radius:var(--r-ctl);background:var(--panel);color:var(--ink-3)}
@@ -254,7 +261,7 @@ pre.json{margin:0;padding:10px 12px;border:1px solid var(--hair);border-radius:v
 <body>
 <div id="signin">
   <form class="card" id="signin-form" autocomplete="off">
-    <div class="tile lg">F</div>
+    <div class="brand lg" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 805 651" fill="currentColor" aria-hidden="true" focusable="false"><path d="M335.409 280.002L66.4466 8.85326C62.6213 4.99683 56.1427 6.87544 55.4255 12.2598C47.9949 68.043 73.3921 139.373 93.8107 182.281C96.7191 188.392 90.1371 195.153 84.0506 192.192C65.4093 183.124 40.6604 171.153 19.5225 161.11C14.578 158.761 9.14661 162.809 10.4674 168.121C19.9909 206.425 49.1396 249.916 70.5581 276.886C74.607 281.984 70.2691 289.731 63.843 288.686C48.1311 286.132 28.8518 282.957 13.8225 280.375C8.16687 279.403 3.90892 285.271 6.96351 290.129C37.121 338.091 93.3891 375.922 132.101 396.309C138.307 399.578 136.791 409.572 129.844 410.55C115.525 412.565 99.4701 414.866 87.351 416.701C81.9642 417.516 79.8096 423.83 83.9843 427.331C123.021 460.066 202.684 476.897 250.529 482.807C256.359 483.527 258.947 490.695 254.794 494.849L186.081 563.561C183.328 566.314 183.387 570.791 186.319 573.351C220.53 603.222 270.117 623.944 294.847 631.951C297.234 632.725 299.821 632.077 301.624 630.33L323.874 608.775C328.264 604.522 335.609 607.629 335.609 613.741V636.505C335.609 639.356 337.342 641.934 340.051 642.822C376.214 654.678 435.328 649.476 466.015 644.513C469.316 643.979 471.698 641.108 471.698 637.764V617.503C471.698 611.192 479.52 608.112 483.925 612.632C490.931 619.819 498.638 627.346 503.712 631.312C505.306 632.557 507.421 632.809 509.346 632.188C565.513 614.042 604.356 587.811 621.171 573.253C624.06 570.751 624.06 566.396 621.362 563.69C602.379 544.654 570.829 512.743 552.113 492.946C548.076 488.676 551.035 481.743 556.9 481.379C646.846 475.791 699.489 447.31 721.606 427.519C725.624 423.924 723.191 417.888 717.837 417.247C704.121 415.607 685.914 413.223 670.508 410.685C664.108 409.63 662.982 401.278 668.684 398.186C748.134 355.097 786.319 311.933 799.98 287.705C802.605 283.05 798.44 278.207 793.214 279.327C780.543 282.043 762.632 285.855 744.384 289.673C737.783 291.055 733.138 282.95 737.402 277.724C772.041 235.268 789.169 192.498 795.571 167.637C796.913 162.426 791.786 158.365 786.874 160.562C773.448 166.568 751.662 176.768 723.895 190.815C717.888 193.854 711.25 187.322 714.008 181.18C745.88 110.178 749.823 49.4505 746.823 18.0623C746.306 12.6616 740.051 10.5685 736.168 14.3567C701.492 48.1814 583.299 164.884 311.261 436.092C308.314 439.029 303.35 438.813 300.992 435.385C257.612 372.323 301.176 316.001 334.457 290.897C337.952 288.261 338.491 283.11 335.409 280.002Z"/><path d="M326.552 333.319C319.378 342.699 315.973 354.198 314.558 363.817C313.683 369.766 320.416 372.338 324.49 367.915L354.231 335.625C350.002 328.321 338.546 317.634 326.552 333.319Z"/></svg></div>
     <h2>Freedom Exchange</h2>
     <p>Operations console. Actions are recorded against your name.</p>
     <div class="field"><label for="si-name">Your name</label><input class="in" id="si-name" placeholder="e.g. Ngozi A." required></div>
@@ -266,7 +273,7 @@ pre.json{margin:0;padding:10px 12px;border:1px solid var(--hair);border-radius:v
 
 <div id="app" hidden>
   <aside class="sb">
-    <div class="ws"><div class="tile">F</div><div><div class="ws-name">Freedom Exchange</div><div class="ws-date" id="sb-date">—</div></div></div>
+    <div class="ws"><div class="brand" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 805 651" fill="currentColor" aria-hidden="true" focusable="false"><path d="M335.409 280.002L66.4466 8.85326C62.6213 4.99683 56.1427 6.87544 55.4255 12.2598C47.9949 68.043 73.3921 139.373 93.8107 182.281C96.7191 188.392 90.1371 195.153 84.0506 192.192C65.4093 183.124 40.6604 171.153 19.5225 161.11C14.578 158.761 9.14661 162.809 10.4674 168.121C19.9909 206.425 49.1396 249.916 70.5581 276.886C74.607 281.984 70.2691 289.731 63.843 288.686C48.1311 286.132 28.8518 282.957 13.8225 280.375C8.16687 279.403 3.90892 285.271 6.96351 290.129C37.121 338.091 93.3891 375.922 132.101 396.309C138.307 399.578 136.791 409.572 129.844 410.55C115.525 412.565 99.4701 414.866 87.351 416.701C81.9642 417.516 79.8096 423.83 83.9843 427.331C123.021 460.066 202.684 476.897 250.529 482.807C256.359 483.527 258.947 490.695 254.794 494.849L186.081 563.561C183.328 566.314 183.387 570.791 186.319 573.351C220.53 603.222 270.117 623.944 294.847 631.951C297.234 632.725 299.821 632.077 301.624 630.33L323.874 608.775C328.264 604.522 335.609 607.629 335.609 613.741V636.505C335.609 639.356 337.342 641.934 340.051 642.822C376.214 654.678 435.328 649.476 466.015 644.513C469.316 643.979 471.698 641.108 471.698 637.764V617.503C471.698 611.192 479.52 608.112 483.925 612.632C490.931 619.819 498.638 627.346 503.712 631.312C505.306 632.557 507.421 632.809 509.346 632.188C565.513 614.042 604.356 587.811 621.171 573.253C624.06 570.751 624.06 566.396 621.362 563.69C602.379 544.654 570.829 512.743 552.113 492.946C548.076 488.676 551.035 481.743 556.9 481.379C646.846 475.791 699.489 447.31 721.606 427.519C725.624 423.924 723.191 417.888 717.837 417.247C704.121 415.607 685.914 413.223 670.508 410.685C664.108 409.63 662.982 401.278 668.684 398.186C748.134 355.097 786.319 311.933 799.98 287.705C802.605 283.05 798.44 278.207 793.214 279.327C780.543 282.043 762.632 285.855 744.384 289.673C737.783 291.055 733.138 282.95 737.402 277.724C772.041 235.268 789.169 192.498 795.571 167.637C796.913 162.426 791.786 158.365 786.874 160.562C773.448 166.568 751.662 176.768 723.895 190.815C717.888 193.854 711.25 187.322 714.008 181.18C745.88 110.178 749.823 49.4505 746.823 18.0623C746.306 12.6616 740.051 10.5685 736.168 14.3567C701.492 48.1814 583.299 164.884 311.261 436.092C308.314 439.029 303.35 438.813 300.992 435.385C257.612 372.323 301.176 316.001 334.457 290.897C337.952 288.261 338.491 283.11 335.409 280.002Z"/><path d="M326.552 333.319C319.378 342.699 315.973 354.198 314.558 363.817C313.683 369.766 320.416 372.338 324.49 367.915L354.231 335.625C350.002 328.321 338.546 317.634 326.552 333.319Z"/></svg></div><div><div class="ws-name">Freedom Exchange</div><div class="ws-date" id="sb-date">—</div></div></div>
     <label class="search"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" placeholder="Search" spellcheck="false"><kbd>⌘K</kbd></label>
     <nav class="nav" id="nav"></nav>
     <div class="sb-foot">

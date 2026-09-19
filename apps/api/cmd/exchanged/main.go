@@ -102,6 +102,7 @@ func run() error {
 	root.Mount("/v1/rail", railAPI.Routes())
 	root.Mount("/v1/market", pub.API())
 	root.Mount("/market", pub.Page())
+	public.Brand(root)
 	root.Mount("/console", ops.Routes())
 	root.Mount("/", api.Routes())
 

@@ -268,3 +268,41 @@ func TestPublicMarketHidesUnpublished(t *testing.T) {
 		t.Errorf("disclosure exposes its body")
 	}
 }
+
+// The brand routes need no database: every file is embedded, every route
+// answers at the root with the right type and a day of cache.
+func TestBrand(t *testing.T) {
+	r := chi.NewRouter()
+	Brand(r)
+	r.Mount("/", http.NotFoundHandler()) // the API sits here in the binary
+	for _, a := range brand {
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, a.route, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: %d", a.route, rec.Code)
+		}
+		if got := rec.Header().Get("Content-Type"); got != a.ctype {
+			t.Fatalf("%s: content-type %q, want %q", a.route, got, a.ctype)
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "public, max-age=86400" {
+			t.Fatalf("%s: cache-control %q", a.route, got)
+		}
+		if rec.Body.Len() == 0 {
+			t.Fatalf("%s: empty body", a.route)
+		}
+	}
+	// PNGs are PNGs and the manifest names the venue.
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
+	if !strings.HasPrefix(rec.Body.String(), "\x89PNG") {
+		t.Fatal("/favicon.ico is not a PNG")
+	}
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/site.webmanifest", nil))
+	var m struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil || m.Name != "Freedom Exchange" {
+		t.Fatalf("manifest: %v %q", err, m.Name)
+	}
+}

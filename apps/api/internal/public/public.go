@@ -11,7 +11,7 @@ package public
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -29,8 +29,46 @@ import (
 	"freedom/api/internal/share"
 )
 
-//go:embed ui/index.html
-var page []byte
+// ui holds the market page and the brand assets every surface of this
+// binary links to: the favicons, the Apple touch icon and the web manifest.
+//
+//go:embed ui/*
+var ui embed.FS
+
+var page = mustRead("ui/index.html")
+
+func mustRead(name string) []byte {
+	b, err := ui.ReadFile(name)
+	if err != nil {
+		panic("public: " + err.Error())
+	}
+	return b
+}
+
+// brand maps each root URL to the embedded file behind it and its type.
+// The console lives on the same origin and links to the same paths.
+var brand = []struct{ route, file, ctype string }{
+	{"/favicon.ico", "ui/favicon-32.png", "image/png"},
+	{"/favicon.svg", "ui/favicon.svg", "image/svg+xml"},
+	{"/apple-touch-icon.png", "ui/apple-touch-icon.png", "image/png"},
+	{"/icon-192.png", "ui/favicon-192.png", "image/png"},
+	{"/icon-512.png", "ui/favicon-512.png", "image/png"},
+	{"/site.webmanifest", "ui/site.webmanifest", "application/manifest+json"},
+}
+
+// Brand registers the favicon, touch icon and manifest routes on r, which
+// must be the root router: browsers ask for /favicon.ico at the origin, not
+// under /market. A day of caching; the files change with a release.
+func Brand(r chi.Router) {
+	for _, a := range brand {
+		body, ctype := mustRead(a.file), a.ctype
+		r.Get(a.route, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", ctype)
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+			_, _ = w.Write(body)
+		})
+	}
+}
 
 // Server serves the public market.
 type Server struct {
